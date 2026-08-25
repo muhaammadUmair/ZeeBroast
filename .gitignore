@@ -1,0 +1,10 @@
+uploads/products/*
+uploads/categories/*
+uploads/deals/*
+!uploads/products/.gitkeep
+!uploads/categories/.gitkeep
+!uploads/deals/.gitkeep
+
+.DS_Store
+Thumbs.db
+*.log
