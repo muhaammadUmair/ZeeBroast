@@ -37,7 +37,7 @@ $user = current_user();
 <header class="site-header">
   <div class="container">
     <a href="<?= base_url('index.php') ?>" class="logo">
-      <span class="logo-mark">Z</span>
+      <!-- <span class="logo-mark">Z</span> -->
       <span><span class="zee">ZEE</span><span class="broast">BROAST</span></span>
     </a>
 

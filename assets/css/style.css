@@ -51,7 +51,7 @@ input, select, textarea { font-family: inherit; }
   padding: 0 20px;
 }
 
-.section { padding: 64px 0; background: #000000; }
+.section { padding: 34px 0; background: #000000; }
 .section-alt { background: #000000; }
 
 .eyebrow {
@@ -164,6 +164,15 @@ input, select, textarea { font-family: inherit; }
     radial-gradient(ellipse 40% 40% at 15% 85%, rgba(227,28,37,.10), transparent 70%),
     var(--bg);
 }
+.hero-with-bucket {
+  background-image:
+    var(--hero-bucket-image),
+    radial-gradient(ellipse 60% 55% at 78% 40%, rgba(227,28,37,.20), transparent 70%),
+    radial-gradient(ellipse 40% 40% at 15% 85%, rgba(227,28,37,.10), transparent 70%);
+  background-position: right 0 center, 78% 40%, 15% 85%;
+  background-size: 1600px 700px, auto, auto;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+}
 .hero .container { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
 .hero h1 { font-size: 56px; font-weight: 800; line-height: 1.08; letter-spacing: -.5px; margin-bottom: 18px; text-transform: uppercase; }
 .hero h1 .accent { color: var(--red); }
@@ -175,12 +184,60 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
 }
 
-.hero-badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.hero-badges .badge {
-  background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 14px 10px; text-align: center; font-size: 11.5px; color: var(--text-muted); font-weight: 500;
+.hero-badges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(8, 8, 8, .78);
+  backdrop-filter: blur(6px);
 }
-.hero-badges .badge .b-icon { font-size: 20px; margin-bottom: 6px; display: block; }
+.hero-badges .badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 14px 16px;
+  text-align: left;
+  line-height: 1.4;
+  font-size: 12px;
+  color: rgba(255, 255, 255, .88);
+  font-weight: 500;
+}
+.hero-badges .badge:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  right: 0;
+  bottom: 16px;
+  width: 1px;
+  background: rgba(255, 255, 255, .11);
+}
+.hero-badges .badge .b-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(227, 28, 37, .65);
+  color: var(--red);
+  background: rgba(227, 28, 37, .08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex: 0 0 34px;
+}
+.hero-badges .badge .b-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 .hero-visual { position: relative; display: flex; align-items: center; justify-content: center; }
 .hero-plate {
@@ -255,6 +312,7 @@ input, select, textarea { font-family: inherit; }
   aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center; font-size: 64px;
   background: radial-gradient(circle at 50% 30%, #5a2210, #200b06 75%);
 }
+.deal-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .deal-body { padding: 18px; }
 .deal-body h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
 .deal-body p { color: var(--text-muted); font-size: 12.5px; margin-bottom: 14px; }
@@ -268,15 +326,22 @@ input, select, textarea { font-family: inherit; }
 .delivery-banner {
   border-radius: 20px; overflow: hidden; position: relative; min-height: 300px;
   display: flex; align-items: center;
-  background:
+  /* background:
     linear-gradient(90deg, rgba(13,13,13,.95) 20%, rgba(13,13,13,.55) 60%, rgba(13,13,13,.2)),
-    radial-gradient(circle at 80% 40%, #3a0e0e, #0d0d0d 70%);
+    radial-gradient(circle at 80% 40%, #3a0e0e, #0d0d0d 70%); */
   padding: 50px;
 }
 .delivery-banner .content { max-width: 420px; }
 .delivery-banner h2 { font-size: 30px; font-weight: 800; margin-bottom: 14px; }
 .delivery-banner p { color: var(--text-muted); margin-bottom: 22px; }
 .rider-emoji { position: absolute; right: 60px; top: 50%; transform: translateY(-50%); font-size: 140px; opacity: .9; }
+
+.delivery-with-rider {
+  background-image: var(--delivery-rider-image);
+  background-position: right center;
+  background-size: 50% auto;
+  background-repeat: no-repeat;
+}
 
 /* ---------------------------------------------------------------------
    Footer
@@ -465,6 +530,10 @@ input, select, textarea { font-family: inherit; }
    ------------------------------------------------------------------- */
 @media (max-width: 992px) {
   .hero .container { grid-template-columns: 1fr; }
+  .hero-with-bucket {
+    background-size: 1200px 560px, auto, auto;
+    background-position: right -160px top, 78% 40%, 15% 85%;
+  }
   .hero-visual { order: -1; max-width: 320px; margin: 0 auto; }
   .hero h1 { font-size: 40px; }
   .card-grid { grid-template-columns: repeat(2, 1fr); }
@@ -474,10 +543,24 @@ input, select, textarea { font-family: inherit; }
   .info-grid { grid-template-columns: 1fr; }
   .product-detail { grid-template-columns: 1fr; }
   .value-grid { grid-template-columns: repeat(2, 1fr); }
+  .delivery-with-rider {
+    background-size: 62% auto;
+    background-position: right -40px center;
+  }
 }
 
 @media (max-width: 768px) {
   .topbar { display: none; }
+  .hero-with-bucket {
+    background-image:
+      linear-gradient(rgba(0, 0, 0, .55), rgba(0, 0, 0, .55)),
+      var(--hero-bucket-image),
+      radial-gradient(ellipse 60% 55% at 78% 40%, rgba(227,28,37,.20), transparent 70%),
+      radial-gradient(ellipse 40% 40% at 15% 85%, rgba(227,28,37,.10), transparent 70%);
+    background-size: 100% 100%, 920px 440px, auto, auto;
+    background-position: 0 0, right top, 78% 40%, 15% 85%;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  }
   .main-nav {
     position: fixed; top: 76px; left: 0; right: 0; bottom: 0; background: var(--bg);
     flex-direction: column; padding: 24px; gap: 6px; transform: translateX(-100%);
@@ -486,7 +569,22 @@ input, select, textarea { font-family: inherit; }
   .main-nav.open { transform: translateX(0); }
   .main-nav a { padding: 14px 6px; border-bottom: 1px solid var(--border); font-size: 16px; }
   .nav-toggle { display: block; }
-  .hero-badges { grid-template-columns: repeat(2, 1fr); }
+  .hero-badges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    overflow: visible;
+  }
+  .hero-badges .badge {
+    min-height: 74px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 12px;
+    background: rgba(8, 8, 8, .72);
+  }
+  .hero-badges .badge::after { display: none; }
   .card-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .deal-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; }
@@ -494,13 +592,35 @@ input, select, textarea { font-family: inherit; }
   .delivery-banner { padding: 30px; text-align: center; }
   .delivery-banner .content { margin: 0 auto; }
   .rider-emoji { display: none; }
+  .delivery-with-rider {
+    background-image: linear-gradient(rgba(0, 0, 0, .55), rgba(0, 0, 0, .55)), var(--delivery-rider-image);
+    background-size: 100% 100%, 110% auto;
+    background-position: 0 0, center bottom;
+    background-repeat: no-repeat, no-repeat;
+  }
   .combo-banner { flex-direction: column; text-align: center; }
   .form-row { grid-template-columns: 1fr; }
   .value-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 480px) {
+  .hero-with-bucket {
+    background-image:
+      linear-gradient(rgba(0, 0, 0, .62), rgba(0, 0, 0, .62)),
+      var(--hero-bucket-image),
+      radial-gradient(ellipse 60% 55% at 78% 40%, rgba(227,28,37,.20), transparent 70%),
+      radial-gradient(ellipse 40% 40% at 15% 85%, rgba(227,28,37,.10), transparent 70%);
+    background-size: 100% 100%, 700px 330px, auto, auto;
+    background-position: 0 0, right top, 78% 40%, 15% 85%;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  }
+  .delivery-with-rider {
+    background-image: linear-gradient(rgba(0, 0, 0, .62), rgba(0, 0, 0, .62)), var(--delivery-rider-image);
+    background-size: 100% 100%, 130% auto;
+    background-position: 0 0, center bottom;
+    background-repeat: no-repeat, no-repeat;
+  }
   .card-grid { grid-template-columns: 1fr 1fr; }
-  .hero-badges { grid-template-columns: repeat(2, 1fr); }
+  .hero-badges { grid-template-columns: 1fr; }
   h1, .hero h1 { font-size: 28px; }
 }

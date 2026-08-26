@@ -21,9 +21,16 @@ $dealItemsStmt = db()->prepare("SELECT item_label, quantity FROM deal_items WHER
     <?php else: ?>
     <div class="deal-grid">
       <?php foreach ($deals as $deal): $dealItemsStmt->execute([$deal['id']]); $items = $dealItemsStmt->fetchAll(); ?>
+      <?php $dealImageUrl = media_url($deal['image'] ?? null); ?>
       <div class="deal-card">
         <?php if ($deal['discount_percent'] > 0): ?><span class="deal-save">Save <?= (int)$deal['discount_percent'] ?>%</span><?php endif; ?>
-        <div class="deal-thumb"><?= e($deal['icon'] ?: '🍗') ?></div>
+        <div class="deal-thumb">
+          <?php if ($dealImageUrl): ?>
+            <img src="<?= e($dealImageUrl) ?>" alt="<?= e($deal['title']) ?>" loading="lazy">
+          <?php else: ?>
+            <?= e($deal['icon'] ?: '🍗') ?>
+          <?php endif; ?>
+        </div>
         <div class="deal-body">
           <h3><?= e($deal['title']) ?></h3>
           <p><?= e($deal['description']) ?></p>
