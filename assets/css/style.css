@@ -414,6 +414,12 @@ input, select, textarea { font-family: inherit; }
   background: linear-gradient(120deg, #7a0f14, #3a0709 80%);
   display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px;
 }
+.combo-with-image {
+  background-image: var(--combo-image);
+  background-position: right center;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+}
 .combo-banner .content h3 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
 .combo-banner .content p { color: rgba(255,255,255,.8); margin-bottom: 16px; font-size: 13.5px; }
 .combo-banner .emoji-row { font-size: 70px; display: flex; gap: 6px; opacity: .95; }
@@ -547,6 +553,10 @@ input, select, textarea { font-family: inherit; }
     background-size: 62% auto;
     background-position: right -40px center;
   }
+  .combo-with-image {
+    background-size: 1250px 560px;
+    background-position: right -180px center;
+  }
 }
 
 @media (max-width: 768px) {
@@ -598,6 +608,12 @@ input, select, textarea { font-family: inherit; }
     background-position: 0 0, center bottom;
     background-repeat: no-repeat, no-repeat;
   }
+  .combo-with-image {
+    background-image: linear-gradient(rgba(0, 0, 0, .55), rgba(0, 0, 0, .55)), var(--combo-image);
+    background-size: 100% 100%, 980px auto;
+    background-position: 0 0, right top;
+    background-repeat: no-repeat, no-repeat;
+  }
   .combo-banner { flex-direction: column; text-align: center; }
   .form-row { grid-template-columns: 1fr; }
   .value-grid { grid-template-columns: 1fr 1fr; }
@@ -618,6 +634,12 @@ input, select, textarea { font-family: inherit; }
     background-image: linear-gradient(rgba(0, 0, 0, .62), rgba(0, 0, 0, .62)), var(--delivery-rider-image);
     background-size: 100% 100%, 130% auto;
     background-position: 0 0, center bottom;
+    background-repeat: no-repeat, no-repeat;
+  }
+  .combo-with-image {
+    background-image: linear-gradient(rgba(0, 0, 0, .62), rgba(0, 0, 0, .62)), var(--combo-image);
+    background-size: 100% 100%, 820px 360px;
+    background-position: 0 0, center right -320px;
     background-repeat: no-repeat, no-repeat;
   }
   .card-grid { grid-template-columns: 1fr 1fr; }

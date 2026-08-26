@@ -46,6 +46,7 @@ function menu_query_with(array $overrides): string {
     $q = array_merge($_GET, $overrides);
     return '?' . http_build_query($q);
 }
+$drinksSidesImage = trim((string)setting('drinks_sides_image', ''));
 ?>
 
 <div class="page-header">
@@ -129,17 +130,18 @@ function menu_query_with(array $overrides): string {
         <?php endif; ?>
         <?php endif; ?>
 
-        <div class="combo-banner">
+        <div class="combo-banner<?= $drinksSidesImage !== '' ? ' combo-with-image' : '' ?>"<?= $drinksSidesImage !== '' ? ' style="--combo-image: url(\'' . e(base_url($drinksSidesImage)) . '\');"' : '' ?>>
           <div class="content">
             <span class="eyebrow" style="color:#fff">Make It A Meal</span>
             <h3>Add Drinks &amp; Sides</h3>
             <p>Complete your meal and save more!</p>
             <a href="<?= base_url('deals.php') ?>" class="btn btn-primary">Add Combo</a>
           </div>
-          <div class="emoji-row">🍗🍟🥤</div>
+          <!-- <div class="emoji-row">🍗🍟🥤</div> -->
         </div>
       </div>
     </div>
+    
   </div>
 </div>
 
