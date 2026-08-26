@@ -429,7 +429,7 @@ input, select, textarea { font-family: inherit; }
    ------------------------------------------------------------------- */
 .flow-wrap { max-width: 460px; margin: 0 auto; }
 .flow-card {
-  background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  background: black; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 24px;
 }
 .flow-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; margin-bottom: 20px; }
@@ -615,6 +615,16 @@ input, select, textarea { font-family: inherit; }
     background-repeat: no-repeat, no-repeat;
   }
   .combo-banner { flex-direction: column; text-align: center; }
+  .flow-wrap {
+    max-width: 100%;
+    margin: auto;
+  }
+  .flow-card {
+    background: #000;
+    border: 0;
+    border-radius: 0;
+    width: 100%;
+  }
   .form-row { grid-template-columns: 1fr; }
   .value-grid { grid-template-columns: 1fr 1fr; }
 }
