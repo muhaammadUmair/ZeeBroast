@@ -28,7 +28,14 @@ $subtotal = cart_subtotal();
 
         <?php foreach ($items as $key => $item): ?>
         <div class="cart-line">
-          <div class="thumb"><?= $item['type'] === 'deal' ? '🎉' : '🍗' ?></div>
+          <div class="thumb">
+            <?php $cartImage = media_url(cart_item_image($item)); ?>
+            <?php if ($cartImage): ?>
+              <img src="<?= e($cartImage) ?>" alt="<?= e($item['name']) ?>" loading="lazy">
+            <?php else: ?>
+              <?= ($item['type'] ?? 'product') === 'deal' ? '🎉' : '🍗' ?>
+            <?php endif; ?>
+          </div>
           <div class="info">
             <h4><?= e($item['name']) ?></h4>
             <div class="price"><?= money($item['price']) ?></div>

@@ -11,9 +11,9 @@ try {
         $qty = max(1, (int)($_POST['qty'] ?? 1));
 
         if ($type === 'product') {
-            $stmt = db()->prepare("SELECT id, name, price, sale_price FROM products WHERE id = ? AND status = 'active'");
+            $stmt = db()->prepare("SELECT id, name, price, sale_price, image FROM products WHERE id = ? AND status = 'active'");
         } else {
-            $stmt = db()->prepare("SELECT id, title AS name, deal_price AS price, NULL AS sale_price FROM deals WHERE id = ? AND status = 'active'");
+            $stmt = db()->prepare("SELECT id, title AS name, deal_price AS price, NULL AS sale_price, image FROM deals WHERE id = ? AND status = 'active'");
         }
         $stmt->execute([$id]);
         $item = $stmt->fetch();
@@ -24,7 +24,7 @@ try {
         }
 
         $price = !empty($item['sale_price']) ? (float)$item['sale_price'] : (float)$item['price'];
-        cart_add($type, (int)$item['id'], $item['name'], $price, $qty);
+        cart_add($type, (int)$item['id'], $item['name'], $price, $qty, $item['image'] ?? null);
 
         echo json_encode(['ok' => true, 'count' => cart_count(), 'subtotal' => cart_subtotal(), 'name' => $item['name']]);
         exit;

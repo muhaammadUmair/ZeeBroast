@@ -9,6 +9,7 @@ $success = null;
 
 $fields = [
     'site_name', 'site_tagline', 'phone', 'email', 'address',
+    'fcon_image',
     'facebook_url', 'instagram_url', 'twitter_url',
     'delivery_fee', 'free_delivery_threshold', 'min_order_amount', 'estimated_delivery_minutes',
     'currency_symbol', 'primary_color', 'dark_bg',
@@ -46,6 +47,7 @@ require_once __DIR__ . '/includes/header.php';
     <div class="form-grid">
       <div class="form-group"><label>Site Name</label><input class="form-control" name="site_name" value="<?= e($current['site_name'] ?? '') ?>"></div>
       <div class="form-group"><label>Tagline</label><input class="form-control" name="site_tagline" value="<?= e($current['site_tagline'] ?? '') ?>"></div>
+      <div class="form-group"><label>Favicon Image</label><input class="form-control" name="fcon_image" value="<?= e($current['fcon_image'] ?? '') ?>" placeholder="favicon.png or uploads/favicon.png"></div>
       <div class="form-group"><label>Currency Symbol</label><input class="form-control" name="currency_symbol" value="<?= e($current['currency_symbol'] ?? '') ?>"></div>
       <div class="form-group"><label>Order ID Prefix</label><input class="form-control" name="order_id_prefix" value="<?= e($current['order_id_prefix'] ?? '') ?>"></div>
     </div>

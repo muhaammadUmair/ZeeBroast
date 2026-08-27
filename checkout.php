@@ -7,11 +7,20 @@ if (cart_subtotal() <= 0) {
 }
 
 $error = null;
+
+$user = current_user();
+$existingAddresses = [];
+if ($user) {
+    $addressStmt = db()->prepare('SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, id DESC');
+    $addressStmt->execute([$user['id']]);
+    $existingAddresses = $addressStmt->fetchAll();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf()) {
         $error = 'Invalid session, please try again.';
     } else {
-        $_SESSION['checkout'] = [
+        $checkoutData = [
             'order_type'    => $_POST['order_type'] === 'takeaway' ? 'takeaway' : 'delivery',
             'house_no'      => trim($_POST['house_no'] ?? ''),
             'street'        => trim($_POST['street'] ?? ''),
@@ -22,7 +31,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'name'          => trim($_POST['name'] ?? ''),
             'phone'         => trim($_POST['phone'] ?? ''),
             'email'         => trim($_POST['email'] ?? ''),
+            'address_id'    => null,
         ];
+
+        if ($checkoutData['order_type'] === 'delivery') {
+            $selectedAddressId = isset($_POST['address_id']) ? (int)$_POST['address_id'] : 0;
+            if ($user && $selectedAddressId > 0) {
+                $selectedAddressStmt = db()->prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?');
+                $selectedAddressStmt->execute([$selectedAddressId, $user['id']]);
+                $selectedAddress = $selectedAddressStmt->fetch();
+                if ($selectedAddress) {
+                    $checkoutData['address_id'] = $selectedAddress['id'];
+                    $checkoutData['house_no'] = $selectedAddress['house_no'];
+                    $checkoutData['street'] = $selectedAddress['street'];
+                    $checkoutData['city'] = $selectedAddress['city'];
+                    $checkoutData['instructions'] = $selectedAddress['instructions'] ?? '';
+                }
+            }
+
+            if ($user && empty($checkoutData['address_id']) && $checkoutData['house_no'] !== '' && $checkoutData['street'] !== '') {
+                $addressLabel = trim((string)($_POST['address_label'] ?? ''));
+                if ($addressLabel === '') {
+                    $addressLabel = 'Address ' . (count($existingAddresses) + 1);
+                }
+
+                $insertAddress = db()->prepare('INSERT INTO addresses (user_id, label, house_no, street, city, instructions, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                $insertAddress->execute([
+                    $user['id'],
+                    $addressLabel,
+                    $checkoutData['house_no'],
+                    $checkoutData['street'],
+                    $checkoutData['city'],
+                    $checkoutData['instructions'],
+                    0,
+                ]);
+                $checkoutData['address_id'] = (int)db()->lastInsertId();
+            }
+        }
+
+        $_SESSION['checkout'] = $checkoutData;
 
         if ($_SESSION['checkout']['order_type'] === 'delivery' && ($_SESSION['checkout']['house_no'] === '' || $_SESSION['checkout']['street'] === '')) {
             $error = 'Please provide your delivery address.';
@@ -34,7 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$user = current_user();
 $saved = $_SESSION['checkout'] ?? [];
 ?>
 
@@ -57,7 +103,7 @@ $saved = $_SESSION['checkout'] ?? [];
 
         <div class="toggle-tabs">
           <button type="button" class="tab-delivery active" onclick="setOrderType('delivery')">Delivery</button>
-          <button type="button" class="tab-takeaway" onclick="setOrderType('takeaway')">Takeaway</button>
+          <!-- <button type="button" class="tab-takeaway" onclick="setOrderType('takeaway')">Takeaway</button> -->
         </div>
         <input type="hidden" name="order_type" id="order_type" value="<?= e($saved['order_type'] ?? 'delivery') ?>">
 
@@ -66,7 +112,31 @@ $saved = $_SESSION['checkout'] ?? [];
           <div class="form-group"><label>Phone</label><input class="form-control" name="phone" value="<?= e($saved['phone'] ?? ($user['phone'] ?? '')) ?>" required></div>
         </div>
 
+        <?php if ($user && !empty($existingAddresses)): ?>
+        <div class="form-group">
+          <label>Saved Addresses</label>
+          <select class="form-control" name="address_id" id="addressIdSelect">
+            <option value="" <?= empty($saved['address_id'] ?? null) ? 'selected' : '' ?>>Add new address</option>
+            <?php foreach ($existingAddresses as $address): ?>
+              <option
+                value="<?= (int)$address['id'] ?>"
+                data-label="<?= e($address['label'] ?? '') ?>"
+                data-house-no="<?= e($address['house_no'] ?? '') ?>"
+                data-street="<?= e($address['street'] ?? '') ?>"
+                data-city="<?= e($address['city'] ?? 'Lahore') ?>"
+                data-instructions="<?= e($address['instructions'] ?? '') ?>"
+                <?= ((string)($saved['address_id'] ?? '') === (string)$address['id']) ? 'selected' : '' ?>>
+                <?= e($address['label'] ?: 'Saved Address') ?> — <?= e($address['house_no']) ?>, <?= e($address['street']) ?>, <?= e($address['city']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
+
         <div id="addressFields">
+          <?php if ($user && !empty($existingAddresses)): ?>
+          <div class="form-group"><label>Address Label (Optional)</label><input class="form-control" name="address_label" value="<?= e($saved['address_label'] ?? '') ?>" placeholder="Home, Office, etc."></div>
+          <?php endif; ?>
           <div class="form-group"><label>Delivery Address — House / Flat No.</label><input class="form-control" name="house_no" value="<?= e($saved['house_no'] ?? '') ?>" placeholder="House 130, Street 4"></div>
           <div class="form-row">
             <div class="form-group"><label>Street / Area</label><input class="form-control" name="street" value="<?= e($saved['street'] ?? '') ?>" placeholder="DHA Phase 5"></div>
@@ -100,6 +170,33 @@ function setOrderType(type) {
   document.querySelector('.tab-takeaway').classList.toggle('active', type === 'takeaway');
   document.getElementById('addressFields').style.display = type === 'delivery' ? 'block' : 'none';
 }
+
+function fillSelectedAddress() {
+  const select = document.getElementById('addressIdSelect');
+  if (!select) return;
+
+  const selectedOption = select.options[select.selectedIndex];
+  if (!selectedOption || !selectedOption.value) {
+    return;
+  }
+
+  const addressLabelField = document.querySelector('input[name="address_label"]');
+  if (addressLabelField) {
+    addressLabelField.value = selectedOption.dataset.label || '';
+  }
+
+  document.querySelector('input[name="house_no"]').value = selectedOption.dataset.houseNo || '';
+  document.querySelector('input[name="street"]').value = selectedOption.dataset.street || '';
+  document.querySelector('input[name="city"]').value = selectedOption.dataset.city || 'Lahore';
+  document.querySelector('input[name="instructions"]').value = selectedOption.dataset.instructions || '';
+}
+
+const addressSelect = document.getElementById('addressIdSelect');
+if (addressSelect) {
+  addressSelect.addEventListener('change', fillSelectedAddress);
+  fillSelectedAddress();
+}
+
 setOrderType(document.getElementById('order_type').value);
 </script>
 

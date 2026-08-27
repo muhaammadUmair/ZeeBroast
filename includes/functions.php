@@ -48,6 +48,31 @@ function media_url(?string $path): ?string
     return base_url('uploads/' . ltrim($path, '/'));
 }
 
+function cart_item_image(array $item): ?string
+{
+    if (!empty($item['image'])) {
+        return (string)$item['image'];
+    }
+
+    $type = $item['type'] ?? '';
+    $id = (int)($item['id'] ?? 0);
+    if ($id <= 0) {
+        return null;
+    }
+
+    if ($type === 'deal') {
+        $stmt = db()->prepare('SELECT image FROM deals WHERE id = ? AND status = "active" LIMIT 1');
+    } elseif ($type === 'product') {
+        $stmt = db()->prepare('SELECT image FROM products WHERE id = ? AND status = "active" LIMIT 1');
+    } else {
+        return null;
+    }
+
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    return !empty($row['image']) ? (string)$row['image'] : null;
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['csrf_token'])) {
@@ -139,7 +164,7 @@ function cart_init(): void
     }
 }
 
-function cart_add(string $type, int $id, string $name, float $price, int $qty = 1): void
+function cart_add(string $type, int $id, string $name, float $price, int $qty = 1, ?string $image = null): void
 {
     cart_init();
     $key = $type . '_' . $id;
@@ -152,6 +177,7 @@ function cart_add(string $type, int $id, string $name, float $price, int $qty = 
             'name'  => $name,
             'price' => $price,
             'qty'   => $qty,
+            'image' => $image,
         ];
     }
 }

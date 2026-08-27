@@ -438,8 +438,9 @@ input, select, textarea { font-family: inherit; }
 .cart-line { display: flex; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
 .cart-line .thumb {
   width: 54px; height: 54px; border-radius: 10px; background: radial-gradient(circle at 50% 35%, #5a2210, #200b06 75%);
-  display: flex; align-items: center; justify-content: center; font-size: 24px; flex: none;
+  display: flex; align-items: center; justify-content: center; font-size: 24px; flex: none; overflow: hidden;
 }
+.cart-line .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cart-line .info { flex: 1; }
 .cart-line .info h4 { font-size: 14px; font-weight: 600; }
 .cart-line .info .price { color: var(--red); font-size: 13px; font-weight: 700; margin-top: 3px; }

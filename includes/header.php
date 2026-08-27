@@ -8,6 +8,18 @@ require_once __DIR__ . '/../config/config.php';
 $active_nav = $active_nav ?? '';
 $cart_count = cart_count();
 $user = current_user();
+$favicon_value = trim((string)setting('fcon_image', ''));
+$favicon_url = '';
+
+if ($favicon_value !== '') {
+    if (preg_match('#^https?://#i', $favicon_value)) {
+        $favicon_url = $favicon_value;
+    } elseif (str_starts_with($favicon_value, 'uploads/')) {
+        $favicon_url = base_url($favicon_value);
+    } else {
+        $favicon_url = base_url($favicon_value);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -16,7 +28,12 @@ $user = current_user();
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= e(($page_title ?? '') ? $page_title . ' — ' . setting('site_name') : setting('site_name') . ' — ' . setting('site_tagline')) ?></title>
 <meta name="description" content="<?= e(setting('site_tagline')) ?> — Order crispy broast chicken, burgers, wings and fries online.">
+<?php if ($favicon_url): ?>
+<link rel="icon" type="image/png" href="<?= e($favicon_url) ?>">
+<link rel="shortcut icon" href="<?= e($favicon_url) ?>">
+<?php else: ?>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍗</text></svg>">
+<?php endif; ?>
 <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>">
 <script>window.ZB_BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
 </head>
