@@ -269,6 +269,7 @@ INSERT INTO `admin_users` (`full_name`, `email`, `password`, `role`) VALUES
 INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
 ('site_name', 'ZeeBroast'),
 ('site_tagline', 'Crispy Broast Chicken'),
+('logo_image', ''),
 ('logo_text', 'ZEEBROAST'),
 ('primary_color', '#E31C25'),
 ('dark_bg', '#0D0D0D'),

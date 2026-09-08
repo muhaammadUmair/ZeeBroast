@@ -3,8 +3,8 @@ $page_title = 'Home';
 $active_nav = 'home';
 require_once __DIR__ . '/includes/header.php';
 
-$signature = db()->query("SELECT p.*, c.slug AS cat_slug FROM products p JOIN categories c ON c.id = p.category_id WHERE p.is_featured = 1 AND p.status='active' ORDER BY p.sort_order LIMIT 4")->fetchAll();
-$deals = db()->query("SELECT * FROM deals WHERE status='active' ORDER BY sort_order LIMIT 3")->fetchAll();
+$signature = db()->query("SELECT p.*, c.slug AS cat_slug FROM products p JOIN categories c ON c.id = p.category_id WHERE p.status='active' ORDER BY p.sort_order, p.name LIMIT 8")->fetchAll();
+$deals = db()->query("SELECT * FROM deals WHERE status='active' ORDER BY sort_order LIMIT 8")->fetchAll();
 $bucketImage = trim((string)setting('bucket_image', ''));
 $riderImage = trim((string)setting('rider_image', ''));
 ?>
@@ -47,15 +47,18 @@ $riderImage = trim((string)setting('rider_image', ''));
 
     <div class="card-grid">
       <?php foreach ($signature as $item): ?>
-      <a href="<?= base_url('product.php?slug=' . urlencode($item['slug'])) ?>" class="food-card">
-        <?= food_thumb($item['image'], $item['icon']) ?>
+      <div class="food-card">
+        <a href="<?= base_url('product.php?slug=' . urlencode($item['slug'])) ?>">
+          <?= food_thumb($item['image'], $item['icon']) ?>
+        </a>
         <div class="food-body">
-          <h3><?= e($item['name']) ?></h3>
+          <a href="<?= base_url('product.php?slug=' . urlencode($item['slug'])) ?>"><h3><?= e($item['name']) ?></h3></a>
           <div class="food-price-row">
             <span class="food-price"><span class="from">Starting From</span><?= money($item['sale_price'] ?: $item['price']) ?></span>
+            <button class="add-cart-btn js-add-cart" data-type="product" data-id="<?= (int)$item['id'] ?>">+ Add to Cart</button>
           </div>
         </div>
-      </a>
+      </div>
       <?php endforeach; ?>
     </div>
 

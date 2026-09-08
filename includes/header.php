@@ -10,6 +10,8 @@ $cart_count = cart_count();
 $user = current_user();
 $favicon_value = trim((string)setting('fcon_image', ''));
 $favicon_url = '';
+$logo_value = trim((string)setting('logo_image', ''));
+$logo_url = '';
 
 if ($favicon_value !== '') {
     if (preg_match('#^https?://#i', $favicon_value)) {
@@ -18,6 +20,14 @@ if ($favicon_value !== '') {
         $favicon_url = base_url($favicon_value);
     } else {
         $favicon_url = base_url($favicon_value);
+    }
+}
+
+if ($logo_value !== '') {
+    if (preg_match('#^https?://#i', $logo_value)) {
+        $logo_url = $logo_value;
+    } else {
+        $logo_url = base_url($logo_value);
     }
 }
 ?>
@@ -53,9 +63,12 @@ if ($favicon_value !== '') {
 
 <header class="site-header">
   <div class="container">
-    <a href="<?= base_url('index.php') ?>" class="logo">
-      <!-- <span class="logo-mark">Z</span> -->
-      <span><span class="zee">ZEE</span><span class="broast">BROAST</span></span>
+    <a href="<?= base_url('index.php') ?>" class="logo" aria-label="<?= e(setting('site_name')) ?> home">
+      <?php if ($logo_url): ?>
+        <img src="<?= e($logo_url) ?>" alt="<?= e(setting('site_name')) ?>" class="logo-image">
+      <?php else: ?>
+        <span><span class="zee">ZEE</span><span class="broast">BROAST</span></span>
+      <?php endif; ?>
     </a>
 
     <nav class="main-nav" id="mainNav">

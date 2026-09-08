@@ -3,8 +3,11 @@
     <div class="footer-grid">
       <div class="footer-about">
         <a href="<?= base_url('index.php') ?>" class="logo">
-          <span class="logo-mark">Z</span>
-          <span><span class="zee">ZEE</span><span class="broast">BROAST</span></span>
+          <?php if ($logo_url): ?>
+            <img src="<?= e($logo_url) ?>" alt="<?= e(setting('site_name')) ?>" class="logo-image">
+          <?php else: ?>
+            <span><span class="zee">ZEE</span><span class="broast">BROAST</span></span>
+          <?php endif; ?>
         </a>
         <p>Crispy, juicy, irresistible broast chicken delivered hot and fresh to your doorstep.</p>
         <div class="footer-social">

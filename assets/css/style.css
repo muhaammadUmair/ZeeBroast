@@ -122,6 +122,13 @@ input, select, textarea { font-family: inherit; }
 }
 .logo .zee { color: var(--red); }
 .logo .broast { color: #fff; }
+.logo-image {
+  display: block;
+  max-height: 42px;
+  max-width: 180px;
+  width: auto;
+  object-fit: contain;
+}
 
 .main-nav { display: flex; gap: 32px; }
 .main-nav a {
