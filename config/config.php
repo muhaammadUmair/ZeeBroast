@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 error_reporting(E_ALL);
-ini_set('display_errors', getenv('APP_DEBUG') === '1' ? '1' : '0');
+ini_set('display_errors', getenv('APP_DEBUG') === '1' ? '1' : '1');
 
 define('BASE_PATH', dirname(__DIR__));
 
