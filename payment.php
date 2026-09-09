@@ -68,6 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
 
+            if ($couponCode && !empty($_SESSION['user_id'])) {
+                mark_coupon_used((int)$_SESSION['user_id'], $couponCode);
+            }
+
             $pdo->commit();
 
             cart_clear();

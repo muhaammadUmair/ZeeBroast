@@ -30,6 +30,133 @@ if (!function_exists('str_starts_with')) {
     }
 }
 
+function normalize_phone_number(?string $phone): string
+{
+    return preg_replace('/\D+/', '', (string)($phone ?? ''));
+}
+
+function ensure_customer_registration_schema(): void
+{
+    $pdo = db();
+
+    $columns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll();
+    $hasAddressColumn = false;
+    foreach ($columns as $column) {
+        if (($column['Field'] ?? '') === 'address') {
+            $hasAddressColumn = true;
+            break;
+        }
+    }
+
+    if (!$hasAddressColumn) {
+        $pdo->exec('ALTER TABLE users ADD COLUMN address TEXT NULL AFTER phone');
+    }
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS user_coupon_codes (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id INT UNSIGNED NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        discount_percent DECIMAL(5,2) NOT NULL DEFAULT 10.00,
+        status ENUM('unused','used','expired') NOT NULL DEFAULT 'unused',
+        expires_at DATE NULL,
+        used_at DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_user_coupon_code (code),
+        KEY fk_user_coupon_user (user_id),
+        CONSTRAINT fk_user_coupon_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function generate_unique_coupon_code(string $prefix = 'ZB'): string
+{
+    do {
+        $suffix = strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
+        $code = $prefix . $suffix;
+        $stmt = db()->prepare('SELECT id FROM coupons WHERE code = ? LIMIT 1');
+        $stmt->execute([$code]);
+    } while ($stmt->fetch() !== false);
+
+    return $code;
+}
+
+function customer_whatsapp_link(string $phone, string $couponCode): string
+{
+    $digits = normalize_phone_number('03035636080');
+    if ($digits === '') {
+        return '';
+    }
+
+    $message = 'Hello! I would like to use my 10% discount code ' . $couponCode . ' on my next order.';
+    return 'https://wa.me/' . $digits . '?text=' . urlencode($message);
+}
+
+function generate_customer_welcome_coupon(int $userId, string $phone): array
+{
+    ensure_customer_registration_schema();
+
+    $phoneDigits = normalize_phone_number($phone);
+    $expiresAt = date('Y-m-d', strtotime('+2 days'));
+    $code = generate_unique_coupon_code('ZB' . substr($phoneDigits, -4) . 'W');
+
+    $couponStmt = db()->prepare('INSERT INTO coupons (code, discount_type, discount_value, min_order_amount, expires_at, status) VALUES (?, ?, ?, ?, ?, ?)');
+    $couponStmt->execute([$code, 'percent', 10.00, 0.00, $expiresAt, 'active']);
+
+    $userCouponStmt = db()->prepare('INSERT INTO user_coupon_codes (user_id, code, discount_percent, status, expires_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = VALUES(status)');
+    $userCouponStmt->execute([$userId, $code, 10.00, 'unused', $expiresAt]);
+
+    return [
+        'code' => $code,
+        'expires_at' => $expiresAt,
+        'whatsapp_url' => customer_whatsapp_link($phoneDigits, $code),
+    ];
+}
+
+function resolve_coupon_code(string $code, ?int $userId = null): ?array
+{
+    $code = trim(strtoupper((string)$code));
+    if ($code === '') {
+        return null;
+    }
+
+    $stmt = db()->prepare("SELECT * FROM coupons WHERE code = ? AND status = 'active' AND (expires_at IS NULL OR expires_at >= CURDATE()) LIMIT 1");
+    $stmt->execute([$code]);
+    $coupon = $stmt->fetch();
+    if (!$coupon) {
+        return null;
+    }
+
+    if ($userId !== null) {
+        $usageStmt = db()->prepare('SELECT * FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
+        $usageStmt->execute([$userId, $code]);
+        $usage = $usageStmt->fetch();
+        if ($usage && $usage['status'] === 'used') {
+            return null;
+        }
+    }
+
+    return $coupon;
+}
+
+function mark_coupon_used(int $userId, string $code): void
+{
+    $code = trim(strtoupper((string)$code));
+    if ($code === '' || $userId <= 0) {
+        return;
+    }
+
+    $stmt = db()->prepare('SELECT id FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
+    $stmt->execute([$userId, $code]);
+    if ($stmt->fetch()) {
+        $update = db()->prepare("UPDATE user_coupon_codes SET status = 'used', used_at = NOW() WHERE user_id = ? AND code = ? AND status != 'used'");
+        $update->execute([$userId, $code]);
+        return;
+    }
+
+    $insert = db()->prepare('INSERT INTO user_coupon_codes (user_id, code, discount_percent, status, expires_at, used_at) VALUES (?, ?, 10.00, ?, DATE_ADD(CURDATE(), INTERVAL 2 DAY), NOW())');
+    $insert->execute([$userId, $code, 'used']);
+}
+
 function money($amount): string
 {
     return setting('currency_symbol', 'Rs.') . ' ' . number_format((float)$amount);

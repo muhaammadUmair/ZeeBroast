@@ -29,8 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'time_option'   => $_POST['time_option'] === 'scheduled' ? 'scheduled' : 'asap',
             'scheduled_time'=> trim($_POST['scheduled_time'] ?? ''),
             'name'          => trim($_POST['name'] ?? ''),
-            'phone'         => trim($_POST['phone'] ?? ''),
+            'phone'         => normalize_phone_number($_POST['phone'] ?? ''),
             'email'         => trim($_POST['email'] ?? ''),
+            'coupon_code'   => trim(strtoupper((string)($_POST['coupon_code'] ?? ''))),
             'address_id'    => null,
         ];
 
@@ -71,11 +72,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $_SESSION['checkout'] = $checkoutData;
 
+        if (!empty($_SESSION['checkout']['coupon_code'])) {
+            $coupon = resolve_coupon_code($_SESSION['checkout']['coupon_code'], $user['id'] ?? null);
+            if (!$coupon) {
+                $error = 'This discount code is invalid, expired, or already used.';
+            } else {
+                $_SESSION['coupon_code'] = $_SESSION['checkout']['coupon_code'];
+            }
+        } else {
+            unset($_SESSION['coupon_code']);
+        }
+
         if ($_SESSION['checkout']['order_type'] === 'delivery' && ($_SESSION['checkout']['house_no'] === '' || $_SESSION['checkout']['street'] === '')) {
             $error = 'Please provide your delivery address.';
         } elseif ($_SESSION['checkout']['name'] === '' || $_SESSION['checkout']['phone'] === '') {
             $error = 'Please provide your name and phone number.';
-        } else {
+        } elseif ($error === null) {
             redirect(base_url('payment.php'));
         }
     }
@@ -110,6 +122,11 @@ $saved = $_SESSION['checkout'] ?? [];
         <div class="form-row">
           <div class="form-group"><label>Full Name</label><input class="form-control" name="name" value="<?= e($saved['name'] ?? ($user['full_name'] ?? '')) ?>" required></div>
           <div class="form-group"><label>Phone</label><input class="form-control" name="phone" value="<?= e($saved['phone'] ?? ($user['phone'] ?? '')) ?>" required></div>
+        </div>
+
+        <div class="form-group">
+          <label>Discount Code (Optional)</label>
+          <input class="form-control" type="text" name="coupon_code" value="<?= e($saved['coupon_code'] ?? '') ?>" placeholder="Enter 10% welcome code" style="text-transform:uppercase">
         </div>
 
         <?php if ($user && !empty($existingAddresses)): ?>
