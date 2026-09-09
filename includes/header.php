@@ -52,11 +52,11 @@ if ($logo_value !== '') {
 <div class="topbar">
   <div class="container">
     <div class="topbar-left">
-      <span>📞 <?= e(setting('phone')) ?></span>
-      <span>📍 <?= e(setting('address')) ?></span>
+      <span><span class="topbar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h3l2 5-2.5 1.5a12 12 0 0 0 6 6L15 14l5 2v3a1 1 0 0 1-1 1C10.7 20 4 13.3 4 5a1 1 0 0 1 1-1Z"></path></svg></span><?= e(setting('phone')) ?></span>
+      <span><span class="topbar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg></span><?= e(setting('address')) ?></span>
     </div>
     <div class="topbar-right">
-      <span><?= setting('halal_badge') ? '✅ 100% Halal Certified' : '' ?></span>
+      <span><?php if (setting('halal_badge')): ?><span class="halal-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span>100% Halal Certified<?php endif; ?></span>
     </div>
   </div>
 </div>
@@ -81,14 +81,14 @@ if ($logo_value !== '') {
     </nav>
 
     <div class="header-actions">
-      <a href="<?= base_url('menu.php') ?>" class="icon-btn" title="Search">🔍</a>
-      <a href="<?= base_url('cart.php') ?>" class="icon-btn" title="Cart">
-        🛒
+      <a href="<?= base_url('menu.php') ?>" class="icon-btn icon-btn-search" title="Search" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4.3 4.3"></path></svg></a>
+      <a href="<?= base_url('cart.php') ?>" class="icon-btn" title="Cart" aria-label="Cart">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h2l1.5 10h10L20 8H7"></path><circle cx="9" cy="19" r="1.2"></circle><circle cx="17" cy="19" r="1.2"></circle></svg>
         <?php if ($cart_count > 0): ?><span class="icon-badge"><?= $cart_count ?></span><?php endif; ?>
       </a>
-      <a href="<?= base_url($user ? 'account.php' : 'login.php') ?>" class="icon-btn" title="Account">👤</a>
+      <a href="<?= base_url($user ? 'account.php' : 'login.php') ?>" class="icon-btn" title="Account" aria-label="Account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"></circle><path d="M5 20c.8-3.3 3.1-5 7-5s6.2 1.7 7 5"></path></svg></a>
       <a href="<?= base_url('menu.php') ?>" class="btn btn-primary btn-sm order-now-desktop">Order Now</a>
-      <button class="nav-toggle" id="navToggle">☰</button>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
     </div>
   </div>
 </header>

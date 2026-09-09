@@ -38,9 +38,9 @@
       <div>
         <h4>Contact Us</h4>
         <ul>
-          <li><a href="tel:<?= e(setting('phone')) ?>">📞 <?= e(setting('phone')) ?></a></li>
-          <li><a href="mailto:<?= e(setting('email')) ?>">✉️ <?= e(setting('email')) ?></a></li>
-          <li><span>📍 <?= e(setting('address')) ?></span></li>
+          <li><a href="tel:<?= e(setting('phone')) ?>"><span class="footer-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h3l2 5-2.5 1.5a12 12 0 0 0 6 6L15 14l5 2v3a1 1 0 0 1-1 1C10.7 20 4 13.3 4 5a1 1 0 0 1 1-1Z"></path></svg></span><?= e(setting('phone')) ?></a></li>
+          <li><a href="mailto:<?= e(setting('email')) ?>"><span class="footer-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></svg></span><?= e(setting('email')) ?></a></li>
+          <li><span class="footer-contact-line"><span class="footer-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg></span><?= e(setting('address')) ?></span></li>
         </ul>
       </div>
     </div>
