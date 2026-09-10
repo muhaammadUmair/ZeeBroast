@@ -452,6 +452,11 @@ input, select, textarea { font-family: inherit; }
 .flow-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; margin-bottom: 20px; }
 .flow-title a { color: var(--text-muted); font-size: 18px; }
 
+/* Data tables (e.g. loyalty points history) — the admin panel has its own copy of this rule */
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 12px 10px; font-size: 13px; border-bottom: 1px solid var(--border); }
+th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+
 .cart-line { display: flex; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
 .cart-line .thumb {
   width: 54px; height: 54px; border-radius: 10px; background: radial-gradient(circle at 50% 35%, #5a2210, #200b06 75%);

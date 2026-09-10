@@ -65,9 +65,10 @@ Then open `http://localhost:8000/`.
                        customers, messages, site settings, admin users)
 /api/cart_action.php  AJAX endpoint for add/update/remove cart operations
 /assets/              CSS/JS for the storefront
-/config/              Database connection + app bootstrap (session, constants)
+/config/               Database connection + app bootstrap (session, constants)
 /database/schema.sql  Full database schema with seed data (categories, products, deals, admin)
-/includes/            Shared PHP includes (header, footer, helper functions)
+/docs/                 User manuals for every feature (see Documentation section below)
+/includes/             Shared PHP includes (header, footer, helper functions)
 /uploads/             Admin-uploaded product/category/deal images (PHP execution disabled here)
 ```
 
@@ -82,17 +83,34 @@ Then open `http://localhost:8000/`.
 - Cart → Checkout (delivery/takeaway, address, scheduling) → Payment (COD/JazzCash/EasyPaisa/Card) → Order confirmation
 - Order tracking by Order ID
 - Customer accounts: register, login, order history
+- Configurable loyalty/referral points program (earn on purchases, redeem at checkout, QR-code referral sharing)
 - Contact form (saved to database) and About page
 
 **Admin panel**
 - Dashboard with revenue/order stats
 - Categories, products and deals CRUD with image upload
 - Order management with status + payment status updates
-- Coupons management
-- Customer list with block/unblock
+- Coupons management (including referral/points-trigger codes)
+- Customer list with block/unblock and loyalty points management
 - Contact message inbox
-- Site-wide settings (branding, hero text, contact info, delivery fees, socials)
+- Site-wide settings (branding, hero text, contact info, delivery fees, loyalty program, socials)
 - Admin user management with roles (super admin / manager / staff)
+
+## Documentation
+
+Full user manuals for every feature, split by topic, live in [`docs/`](docs/README.md):
+
+- [Ordering & Checkout](docs/ordering-and-checkout.md)
+- [Customer Accounts](docs/customer-accounts.md)
+- [Coupons & Discounts](docs/coupons-and-discounts.md)
+- [Referral Program](docs/referral-program.md)
+- [Loyalty Points](docs/loyalty-points.md)
+- [Admin: Catalog Management](docs/admin-catalog-management.md)
+- [Admin: Order Management](docs/admin-order-management.md)
+- [Admin: Customer Management](docs/admin-customer-management.md)
+- [Admin: Site Settings](docs/admin-site-settings.md)
+- [Admin: Users & Security](docs/admin-users-and-security.md)
+- [Contact Form & Messages](docs/contact-and-messages.md)
 
 ## Security notes
 

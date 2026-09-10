@@ -49,6 +49,7 @@ CREATE TABLE `users` (
   `phone` VARCHAR(30) NULL,
   `password` VARCHAR(255) NOT NULL,
   `status` ENUM('active','blocked') NOT NULL DEFAULT 'active',
+  `allow_referral_points` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Admin-controlled: eligible to earn/redeem loyalty points',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user_email` (`email`)
@@ -162,6 +163,7 @@ CREATE TABLE `coupons` (
   `code` VARCHAR(50) NOT NULL,
   `discount_type` ENUM('percent','flat') NOT NULL DEFAULT 'percent',
   `discount_value` DECIMAL(10,2) NOT NULL,
+  `is_referral` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Referral codes: unlimited use, never discount, trigger loyalty points',
   `min_order_amount` DECIMAL(10,2) NOT NULL DEFAULT 0,
   `expires_at` DATE NULL,
   `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
@@ -197,6 +199,13 @@ CREATE TABLE `orders` (
   `total` DECIMAL(10,2) NOT NULL DEFAULT 0,
   `status` ENUM('pending','confirmed','preparing','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'pending',
   `estimated_minutes` INT NOT NULL DEFAULT 30,
+  `loyalty_points_earned` INT UNSIGNED NOT NULL DEFAULT 0,
+  `loyalty_points_awarded` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Guard: prevents awarding the same order twice',
+  `loyalty_points_reversed` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Guard: prevents reversing the same order twice',
+  `loyalty_points_redeemed` INT UNSIGNED NOT NULL DEFAULT 0,
+  `loyalty_discount` DECIMAL(10,2) NOT NULL DEFAULT 0,
+  `loyalty_referral_triggered` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Set when a referral code was applied, used to gate point earning for this order',
+  `loyalty_referral_owner_id` INT UNSIGNED NULL COMMENT 'Customer who owns the referral code used on this order and who receives the earned points',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -225,6 +234,27 @@ CREATE TABLE `order_items` (
   CONSTRAINT `fk_orderitem_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_orderitem_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_orderitem_deal` FOREIGN KEY (`deal_id`) REFERENCES `deals` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- Loyalty / Referral Points Ledger (transaction log; balance = SUM(points))
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `loyalty_points_transactions`;
+CREATE TABLE `loyalty_points_transactions` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` INT UNSIGNED NOT NULL,
+  `order_id` INT UNSIGNED NULL,
+  `transaction_type` ENUM('EARN','REDEEM','ADJUSTMENT','REFUND','EXPIRATION') NOT NULL,
+  `points` INT NOT NULL COMMENT 'Signed: positive = credit, negative = debit',
+  `monetary_value` DECIMAL(10,2) NOT NULL DEFAULT 0,
+  `description` VARCHAR(255) NULL,
+  `created_by_admin_id` INT UNSIGNED NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_loyalty_tx_user` (`user_id`),
+  KEY `fk_loyalty_tx_order` (`order_id`),
+  CONSTRAINT `fk_loyalty_tx_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_loyalty_tx_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
@@ -285,6 +315,13 @@ INSERT INTO `settings` (`setting_key`, `setting_value`) VALUES
 ('estimated_delivery_minutes', '30'),
 ('halal_badge', '1'),
 ('currency_symbol', 'Rs.'),
+('loyalty_points_enabled', '0'),
+('loyalty_spend_amount_per_point', '100'),
+('loyalty_point_value', '1'),
+('loyalty_earn_on_delivery_fee', '0'),
+('loyalty_earn_after_discount', '1'),
+('loyalty_award_status', 'delivered'),
+('loyalty_max_redeem_percent', '100'),
 ('hero_title_line1', 'CRISPY.'),
 ('hero_title_line2', 'JUICY.'),
 ('hero_title_line3', 'IRRESISTIBLE.'),

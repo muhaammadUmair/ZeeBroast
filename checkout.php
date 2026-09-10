@@ -81,6 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } else {
             unset($_SESSION['coupon_code']);
+            // Customer explicitly cleared the field — don't keep re-applying the QR referral code.
+            unset($_SESSION['pending_referral_code']);
         }
 
         if ($_SESSION['checkout']['order_type'] === 'delivery' && ($_SESSION['checkout']['house_no'] === '' || $_SESSION['checkout']['street'] === '')) {
@@ -94,6 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $saved = $_SESSION['checkout'] ?? [];
+// Pre-fill from a QR/share-link referral code if the customer hasn't already typed one of their own.
+$prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : ($_SESSION['pending_referral_code'] ?? '');
 ?>
 
 <div class="page-header">
@@ -125,8 +129,11 @@ $saved = $_SESSION['checkout'] ?? [];
         </div>
 
         <div class="form-group">
-          <label>Discount Code (Optional)</label>
-          <input class="form-control" type="text" name="coupon_code" value="<?= e($saved['coupon_code'] ?? '') ?>" placeholder="Enter 10% welcome code" style="text-transform:uppercase">
+          <label>Discount / Referral Code (Optional)</label>
+          <input class="form-control" type="text" name="coupon_code" value="<?= e($prefilledCouponCode) ?>" placeholder="Enter 10% welcome code" style="text-transform:uppercase">
+          <?php if ($prefilledCouponCode !== '' && empty($saved['coupon_code'])): ?>
+            <p class="muted" style="font-size:12px;margin-top:4px">✓ Applied automatically from your referral link. You can change or clear it.</p>
+          <?php endif; ?>
         </div>
 
         <?php if ($user && !empty($existingAddresses)): ?>

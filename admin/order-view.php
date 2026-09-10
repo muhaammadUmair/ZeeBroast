@@ -22,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf()) {
         $pdo->prepare('UPDATE orders SET payment_status = ? WHERE id = ?')->execute([$newPayStatus, $id]);
         $order['payment_status'] = $newPayStatus;
     }
+
+    // Award or reverse loyalty points based on the new status (no-op if program is disabled).
+    loyalty_handle_order_status_change($id, $order['status'], $order['payment_status']);
 }
 
 $items = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ?');
@@ -72,6 +75,18 @@ require_once __DIR__ . '/includes/header.php';
       <p style="margin-bottom:10px">Takeaway order</p>
       <?php endif; ?>
       <p style="color:var(--muted);font-size:12px">Payment Method</p><p><?= e(strtoupper($order['payment_method'])) ?></p>
+      <?php if ((!empty($order['user_id']) || !empty($order['loyalty_referral_owner_id'])) && loyalty_enabled()): ?>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px">Loyalty Points</p>
+      <?php if (!empty($order['loyalty_referral_owner_id'])): ?>
+        <?php
+          $refOwnerStmt = $pdo->prepare('SELECT full_name, email FROM users WHERE id = ?');
+          $refOwnerStmt->execute([(int)$order['loyalty_referral_owner_id']]);
+          $refOwner = $refOwnerStmt->fetch();
+        ?>
+        <p style="margin-bottom:4px">Referral code credited to: <strong><?= e($refOwner['full_name'] ?? ('User #' . (int)$order['loyalty_referral_owner_id'])) ?></strong></p>
+      <?php endif; ?>
+      <p>Earned: <?= (int)$order['loyalty_points_earned'] ?> <?= (int)$order['loyalty_points_awarded'] === 1 ? '(awarded)' : '(pending)' ?><?= (int)$order['loyalty_points_reversed'] === 1 ? ' — reversed' : '' ?><br>Redeemed: <?= (int)$order['loyalty_points_redeemed'] ?> (<?= money_precise($order['loyalty_discount']) ?>)</p>
+      <?php endif; ?>
     </div>
 
     <div class="panel">

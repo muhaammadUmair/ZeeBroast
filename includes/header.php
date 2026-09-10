@@ -8,6 +8,7 @@ require_once __DIR__ . '/../config/config.php';
 $active_nav = $active_nav ?? '';
 $cart_count = cart_count();
 $user = current_user();
+$newly_captured_referral = capture_referral_code_from_request();
 $favicon_value = trim((string)setting('fcon_image', ''));
 $favicon_url = '';
 $logo_value = trim((string)setting('logo_image', ''));
@@ -97,3 +98,9 @@ document.getElementById('navToggle')?.addEventListener('click', function () {
   document.getElementById('mainNav').classList.toggle('open');
 });
 </script>
+
+<?php if ($newly_captured_referral): ?>
+<div class="container" style="padding-top:14px">
+  <div class="alert alert-success">Referral code <strong><?= e($newly_captured_referral) ?></strong> applied — it'll be used automatically at checkout.</div>
+</div>
+<?php endif; ?>

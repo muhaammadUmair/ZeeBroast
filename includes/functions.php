@@ -68,6 +68,27 @@ function ensure_customer_registration_schema(): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
+/** Referral codes are coupons flagged is_referral=1: unlimited use by anyone, never discount, and act as the loyalty-points trigger for the order they're applied to. */
+function ensure_referral_coupon_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $exists = $pdo->query("SHOW COLUMNS FROM coupons LIKE 'is_referral'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE coupons ADD COLUMN is_referral TINYINT(1) NOT NULL DEFAULT 0 AFTER discount_value');
+    }
+}
+
+function is_referral_coupon(array $coupon): bool
+{
+    return !empty($coupon['is_referral']);
+}
+
 function generate_unique_coupon_code(string $prefix = 'ZB'): string
 {
     do {
@@ -113,6 +134,86 @@ function generate_customer_welcome_coupon(int $userId, string $phone): array
     ];
 }
 
+/**
+ * Generates a referral/loyalty-points code for a customer: 0% discount (points trigger only),
+ * unlimited use, and never expires — distinct from the one-time 10% welcome coupon above.
+ */
+function generate_customer_referral_code(int $userId, string $phone): array
+{
+    ensure_customer_registration_schema();
+    ensure_referral_coupon_schema();
+
+    $phoneDigits = normalize_phone_number($phone);
+    $code = generate_unique_coupon_code('ZB' . substr($phoneDigits, -4) . 'R');
+
+    $couponStmt = db()->prepare('INSERT INTO coupons (code, discount_type, discount_value, is_referral, min_order_amount, expires_at, status) VALUES (?, ?, ?, ?, ?, NULL, ?)');
+    $couponStmt->execute([$code, 'percent', 0.00, 1, 0.00, 'active']);
+
+    $userCouponStmt = db()->prepare('INSERT INTO user_coupon_codes (user_id, code, discount_percent, status, expires_at) VALUES (?, ?, 0.00, ?, NULL) ON DUPLICATE KEY UPDATE status = VALUES(status)');
+    $userCouponStmt->execute([$userId, $code, 'unused']);
+
+    return [
+        'code' => $code,
+        'expires_at' => null,
+        'whatsapp_url' => customer_whatsapp_link($phoneDigits, $code),
+    ];
+}
+
+/**
+ * Captures a referral code from a QR/share link (?ref=CODE), validating it's a real, active
+ * referral coupon before storing it in the session. Once captured it's auto-applied at checkout
+ * without the customer needing to type anything, until the order is placed or they replace it.
+ * Returns the code if newly captured this request (used to show a one-time confirmation banner).
+ */
+function capture_referral_code_from_request(): ?string
+{
+    if (empty($_GET['ref'])) {
+        return null;
+    }
+    $code = strtoupper(trim((string)$_GET['ref']));
+    if ($code === '') {
+        return null;
+    }
+
+    ensure_referral_coupon_schema();
+    $stmt = db()->prepare("SELECT id FROM coupons WHERE code = ? AND status = 'active' AND is_referral = 1 AND (expires_at IS NULL OR expires_at >= CURDATE()) LIMIT 1");
+    $stmt->execute([$code]);
+    if (!$stmt->fetch()) {
+        return null;
+    }
+
+    $isNew = ($_SESSION['pending_referral_code'] ?? null) !== $code;
+    $_SESSION['pending_referral_code'] = $code;
+    return $isNew ? $code : null;
+}
+
+/**
+ * Ensures a customer has an active referral/points-trigger code once their eligibility is
+ * enabled: converts their existing code to 0% discount + never-expiring + is_referral, or
+ * generates a fresh one if they don't have one yet.
+ */
+function ensure_customer_referral_code_active(int $userId): array
+{
+    ensure_customer_registration_schema();
+    ensure_referral_coupon_schema();
+
+    $codeStmt = db()->prepare('SELECT code FROM user_coupon_codes WHERE user_id = ? ORDER BY id DESC LIMIT 1');
+    $codeStmt->execute([$userId]);
+    $existingCode = $codeStmt->fetchColumn();
+
+    if ($existingCode !== false) {
+        $update = db()->prepare("UPDATE coupons SET discount_value = 0.00, is_referral = 1, expires_at = NULL, status = 'active' WHERE code = ?");
+        $update->execute([$existingCode]);
+        return ['code' => $existingCode, 'created' => false];
+    }
+
+    $phoneStmt = db()->prepare('SELECT phone FROM users WHERE id = ?');
+    $phoneStmt->execute([$userId]);
+    $phone = $phoneStmt->fetchColumn() ?: '';
+    $generated = generate_customer_referral_code($userId, (string)$phone);
+    return ['code' => $generated['code'], 'created' => true];
+}
+
 function resolve_coupon_code(string $code, ?int $userId = null): ?array
 {
     $code = trim(strtoupper((string)$code));
@@ -120,6 +221,7 @@ function resolve_coupon_code(string $code, ?int $userId = null): ?array
         return null;
     }
 
+    ensure_referral_coupon_schema();
     $stmt = db()->prepare("SELECT * FROM coupons WHERE code = ? AND status = 'active' AND (expires_at IS NULL OR expires_at >= CURDATE()) LIMIT 1");
     $stmt->execute([$code]);
     $coupon = $stmt->fetch();
@@ -127,7 +229,8 @@ function resolve_coupon_code(string $code, ?int $userId = null): ?array
         return null;
     }
 
-    if ($userId !== null) {
+    // Referral codes are unlimited-use for everyone (including the original owner) — no per-user usage check.
+    if ($userId !== null && !is_referral_coupon($coupon)) {
         $usageStmt = db()->prepare('SELECT * FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
         $usageStmt->execute([$userId, $code]);
         $usage = $usageStmt->fetch();
@@ -146,6 +249,14 @@ function mark_coupon_used(int $userId, string $code): void
         return;
     }
 
+    ensure_referral_coupon_schema();
+    $couponStmt = db()->prepare('SELECT is_referral FROM coupons WHERE code = ? LIMIT 1');
+    $couponStmt->execute([$code]);
+    $coupon = $couponStmt->fetch();
+    if ($coupon && is_referral_coupon($coupon)) {
+        return; // Referral codes are never marked "used" — they stay reusable indefinitely.
+    }
+
     $stmt = db()->prepare('SELECT id FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
     $stmt->execute([$userId, $code]);
     if ($stmt->fetch()) {
@@ -161,6 +272,14 @@ function mark_coupon_used(int $userId, string $code): void
 function money($amount): string
 {
     return setting('currency_symbol', 'Rs.') . ' ' . number_format((float)$amount);
+}
+
+/** Same as money() but keeps up to 2 decimal places (trimmed) — use for loyalty point values, which are often fractional (e.g. Rs. 1.5/point). */
+function money_precise($amount): string
+{
+    $formatted = number_format((float)$amount, 2, '.', ',');
+    $formatted = rtrim(rtrim($formatted, '0'), '.');
+    return setting('currency_symbol', 'Rs.') . ' ' . $formatted;
 }
 
 function redirect(string $path): void
@@ -250,7 +369,7 @@ function current_user(): ?array
     }
     static $user = null;
     if ($user === null) {
-        $stmt = db()->prepare('SELECT id, full_name, email, phone FROM users WHERE id = ?');
+        $stmt = db()->prepare('SELECT id, full_name, email, phone, allow_referral_points FROM users WHERE id = ?');
         $stmt->execute([$_SESSION['user_id']]);
         $user = $stmt->fetch() ?: null;
     }
