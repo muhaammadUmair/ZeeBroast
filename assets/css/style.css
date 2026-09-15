@@ -563,6 +563,47 @@ th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform
 .auth-switch a { color: var(--red); font-weight: 600; }
 
 /* ---------------------------------------------------------------------
+   WhatsApp ordering
+   ------------------------------------------------------------------- */
+.whatsapp-float {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: 28px;
+  background: #25d366;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+  transition: background .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.whatsapp-float svg {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.whatsapp-float:hover {
+  background: #1fbd59;
+  box-shadow: 0 10px 28px rgba(37, 211, 102, .28);
+  transform: translateY(-2px);
+}
+.whatsapp-float:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------
    Responsive
    ------------------------------------------------------------------- */
 @media (max-width: 992px) {
@@ -663,6 +704,14 @@ th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform
 }
 
 @media (max-width: 480px) {
+  .whatsapp-float {
+    right: 16px;
+    bottom: 16px;
+    width: 56px;
+    padding: 0;
+    justify-content: center;
+  }
+  .whatsapp-float span { display: none; }
   .hero-with-bucket {
     background-image:
       linear-gradient(rgba(0, 0, 0, .62), rgba(0, 0, 0, .62)),
@@ -688,4 +737,8 @@ th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform
   .card-grid { grid-template-columns: 1fr 1fr; }
   .hero-badges { grid-template-columns: 1fr; }
   h1, .hero h1 { font-size: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-float { transition: none; }
 }

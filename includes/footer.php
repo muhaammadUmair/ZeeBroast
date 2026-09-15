@@ -49,6 +49,20 @@
     </div>
   </div>
 </footer>
+<a
+  class="whatsapp-float"
+  href="https://wa.me/923035636080?text=Hi%20ZeeBroast%2C%20I%20would%20like%20to%20place%20an%20order."
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label="Order through WhatsApp"
+  title="Order through WhatsApp"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.3-4.7a8.5 8.5 0 1 1 16.2-4.1Z"></path>
+    <path d="M8.2 7.8c.2-.5.4-.5.8-.5h.4c.1 0 .3 0 .4.3l.9 2.1c.1.3.1.5-.1.7l-.7.8c-.2.2-.1.4 0 .6.6 1.1 1.5 2 2.6 2.6.2.1.4.2.6 0l.9-1.1c.2-.2.4-.3.7-.2l2 .9c.3.1.5.2.5.4 0 .2-.1 1.2-.6 1.7-.5.6-1.4.9-2.3.9-1.1 0-2.7-.5-4.6-2.1-2.3-2-3.7-4.4-3.8-6 0-.5.1-.8.3-1.1Z"></path>
+  </svg>
+  <span>Order on WhatsApp</span>
+</a>
 <script src="<?= base_url('assets/js/main.js') ?>"></script>
 </body>
 </html>
