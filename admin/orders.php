@@ -5,6 +5,28 @@ require_admin();
 $admin_page_title = 'Orders';
 $active_admin = 'orders';
 $pdo = db();
+$actionMessage = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf()) {
+  $orderId = (int)($_POST['order_id'] ?? 0);
+  $newStatus = $_POST['status'] ?? '';
+  $newPaymentStatus = $_POST['payment_status'] ?? '';
+
+  if ($orderId > 0 && in_array($newStatus, ['pending', 'confirmed', 'preparing', 'on_the_way', 'delivered', 'cancelled'], true)
+    && in_array($newPaymentStatus, ['pending', 'paid', 'failed', 'refunded'], true)) {
+    $orderStmt = $pdo->prepare('SELECT order_code FROM orders WHERE id = ? LIMIT 1');
+    $orderStmt->execute([$orderId]);
+    $order = $orderStmt->fetch();
+
+    if ($order) {
+      $pdo->prepare('UPDATE orders SET status = ?, payment_status = ? WHERE id = ?')
+        ->execute([$newStatus, $newPaymentStatus, $orderId]);
+      loyalty_handle_order_status_change($orderId, $newStatus, $newPaymentStatus);
+      sync_order_status_to_pos($order['order_code'], $newStatus, $newPaymentStatus);
+      $actionMessage = 'Order updated successfully.';
+    }
+  }
+}
 
 $statusFilter = $_GET['status'] ?? '';
 $search = trim($_GET['q'] ?? '');
@@ -36,6 +58,7 @@ require_once __DIR__ . '/includes/header.php';
 
 <div class="panel">
   <div class="panel-head"><h2>All Orders</h2></div>
+  <?php if ($actionMessage): ?><div class="alert alert-success"><?= e($actionMessage) ?></div><?php endif; ?>
 
   <form method="get" style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
     <input class="form-control" type="text" name="q" placeholder="Search order ID / name / phone" value="<?= e($search) ?>" style="max-width:260px">
@@ -61,7 +84,29 @@ require_once __DIR__ . '/includes/header.php';
         <td><?= money($o['total']) ?></td>
         <td><span class="badge <?= $statusColors[$o['status']] ?? 'badge-gray' ?>"><?= e(ucfirst(str_replace('_', ' ', $o['status']))) ?></span></td>
         <td><?= e(date('d M, h:i A', strtotime($o['created_at']))) ?></td>
-        <td><a href="<?= base_url('admin/order-view.php?id=' . (int)$o['id']) ?>" class="btn btn-outline btn-sm">View</a></td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <a href="<?= base_url('admin/order-view.php?id=' . (int)$o['id']) ?>" class="btn btn-outline btn-sm">View</a>
+            <?php if ($o['status'] !== 'delivered' && $o['status'] !== 'cancelled'): ?>
+            <form method="post" action="<?= base_url('admin/orders.php') ?>">
+              <?= csrf_field() ?>
+              <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
+              <input type="hidden" name="status" value="delivered">
+              <input type="hidden" name="payment_status" value="<?= e($o['payment_status']) ?>">
+              <button type="submit" class="btn btn-primary btn-sm">Delivered</button>
+            </form>
+            <?php endif; ?>
+            <?php if ($o['payment_status'] !== 'paid'): ?>
+            <form method="post" action="<?= base_url('admin/orders.php') ?>">
+              <?= csrf_field() ?>
+              <input type="hidden" name="order_id" value="<?= (int)$o['id'] ?>">
+              <input type="hidden" name="status" value="<?= e($o['status']) ?>">
+              <input type="hidden" name="payment_status" value="paid">
+              <button type="submit" class="btn btn-outline btn-sm">Mark Paid</button>
+            </form>
+            <?php endif; ?>
+          </div>
+        </td>
       </tr>
       <?php endforeach; ?>
     </tbody>

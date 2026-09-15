@@ -9,6 +9,8 @@ define('DB_NAME', getenv('DB_NAME') ?: 'zeebroast');
 define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
+define('POS_API_URL', rtrim((string)(getenv('POS_API_URL') ?: 'http://localhost/pos/Script/public'), '/'));
+define('POS_API_TOKEN', 'your-shared-secret');
 
 function db(): PDO
 {

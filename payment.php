@@ -117,12 +117,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
+            // Sync failures must not roll back the already-committed order.
+            try {
+                sync_order_to_pos($orderId);
+            } catch (Throwable $syncError) {
+                error_log('POS sync failed for order ' . $orderCode . ': ' . $syncError->getMessage());
+            }
+
             cart_clear();
             unset($_SESSION['checkout'], $_SESSION['coupon_code'], $_SESSION['pending_referral_code']);
 
             redirect(base_url('order-confirmation.php?code=' . urlencode($orderCode)));
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             $error = 'Something went wrong placing your order. Please try again.';
         }
     }

@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf()) {
 
     // Award or reverse loyalty points based on the new status (no-op if program is disabled).
     loyalty_handle_order_status_change($id, $order['status'], $order['payment_status']);
+    sync_order_status_to_pos($order['order_code'], $order['status'], $order['payment_status']);
 }
 
 $items = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ?');

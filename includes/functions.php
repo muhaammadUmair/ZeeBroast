@@ -549,3 +549,69 @@ function format_minutes_range($minutes): string
     $minutes = (int)$minutes;
     return $minutes . '-' . ($minutes + 10) . ' mins';
 }
+
+function ensure_pos_sync_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    db()->exec("CREATE TABLE IF NOT EXISTS pos_order_sync (
+        order_id INT UNSIGNED NOT NULL,
+        pos_order_id BIGINT UNSIGNED NULL,
+        sync_status ENUM('pending','synced','failed') NOT NULL DEFAULT 'pending',
+        last_error VARCHAR(500) NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (order_id), KEY idx_pos_order_id (pos_order_id),
+        CONSTRAINT fk_pos_sync_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+function pos_api_request(string $method, string $path, array $payload): array
+{
+    if (POS_API_URL === '' || POS_API_TOKEN === '') return ['success' => false, 'message' => 'POS integration is not configured'];
+    $context = stream_context_create(['http' => [
+        'method' => $method,
+        'header' => "Authorization: Bearer " . POS_API_TOKEN . "\r\nContent-Type: application/json\r\nAccept: application/json\r\n",
+        'content' => json_encode($payload), 'timeout' => 10, 'ignore_errors' => true,
+    ]]);
+    $body = @file_get_contents(POS_API_URL . $path, false, $context);
+    $status = 0;
+    foreach (($http_response_header ?? []) as $header) {
+        if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $match)) $status = (int)$match[1];
+    }
+    $response = json_decode((string)$body, true);
+    return is_array($response) && $status >= 200 && $status < 300 ? $response : ['success' => false, 'message' => $response['message'] ?? ('POS API HTTP ' . $status)];
+}
+
+function sync_order_to_pos(int $orderId): void
+{
+    ensure_pos_sync_schema();
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT * FROM orders WHERE id = ? LIMIT 1');
+    $stmt->execute([$orderId]);
+    $order = $stmt->fetch();
+    if (!$order) return;
+    $items = $pdo->prepare('SELECT item_name AS name, quantity, unit_price FROM order_items WHERE order_id = ? ORDER BY id');
+    $items->execute([$orderId]);
+    $payload = [
+        'order_code' => $order['order_code'],
+        'customer' => ['name' => $order['guest_name'], 'phone' => $order['guest_phone'], 'email' => $order['guest_email']],
+        'delivery' => ['type' => $order['order_type'], 'house_no' => $order['house_no'], 'street' => $order['street'], 'city' => $order['city'], 'instructions' => $order['delivery_instructions'], 'scheduled_time' => $order['scheduled_time']],
+        'payment' => ['method' => $order['payment_method'], 'status' => $order['payment_status']],
+        'subtotal' => $order['subtotal'], 'delivery_fee' => $order['delivery_fee'], 'discount' => $order['discount'], 'discount_code' => $order['coupon_code'], 'total' => $order['total'],
+        'items' => $items->fetchAll(),
+    ];
+    $pdo->prepare("INSERT INTO pos_order_sync (order_id, sync_status) VALUES (?, 'pending') ON DUPLICATE KEY UPDATE sync_status = 'pending'")->execute([$orderId]);
+    $result = pos_api_request('POST', '/api/integrations/zeebroast/orders', $payload);
+    if (!empty($result['success'])) {
+        $pdo->prepare("UPDATE pos_order_sync SET pos_order_id = ?, sync_status = 'synced', last_error = NULL WHERE order_id = ?")->execute([(int)($result['pos_order_id'] ?? 0), $orderId]);
+    } else {
+        $pdo->prepare("UPDATE pos_order_sync SET sync_status = 'failed', last_error = ? WHERE order_id = ?")->execute([substr((string)($result['message'] ?? 'Unknown error'), 0, 500), $orderId]);
+    }
+}
+
+function sync_order_status_to_pos(string $orderCode, ?string $status = null, ?string $paymentStatus = null): void
+{
+    pos_api_request('PATCH', '/api/integrations/zeebroast/orders', ['order_code' => $orderCode, 'status' => $status, 'payment_status' => $paymentStatus]);
+}
