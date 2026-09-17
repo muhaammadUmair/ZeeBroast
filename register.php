@@ -58,6 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p style="margin:0 0 8px"><strong>Your 10% discount code:</strong> <span style="font-size:18px;letter-spacing:1px;word-break:break-all"><?= e($welcomeCode) ?></span></p>
         <a class="btn btn-primary btn-sm" href="<?= e($whatsappLink) ?>" target="_blank" rel="noopener">Share Discount Code To ZeeBroast</a>
       </div>
+      <script>
+      window.location.assign(<?= json_encode($whatsappLink, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+      </script>
       <?php else: ?>
       <form method="post">
         <?= csrf_field() ?>

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Invalid session, please try again.';
     } else {
         $checkoutData = [
-            'order_type'    => $_POST['order_type'] === 'takeaway' ? 'takeaway' : 'delivery',
+          'order_type'    => $_POST['order_type'] === 'takeaway' && strcasecmp(trim((string)($_POST['name'] ?? '')), 'ZeeBroast') === 0 ? 'takeaway' : 'delivery',
             'house_no'      => trim($_POST['house_no'] ?? ''),
             'street'        => trim($_POST['street'] ?? ''),
             'city'          => trim($_POST['city'] ?? 'Lahore'),
@@ -33,13 +33,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'email'         => trim($_POST['email'] ?? ''),
             'coupon_code'   => trim(strtoupper((string)($_POST['coupon_code'] ?? ''))),
             'address_id'    => null,
+            'customer_id'   => null,
         ];
+
+          $selectedCustomerId = isset($_POST['selected_customer_id']) ? (int)$_POST['selected_customer_id'] : 0;
+          if ($selectedCustomerId <= 0) {
+            $selectedCustomerId = (int)($_SESSION['checkout_selected_customer_id'] ?? 0);
+          }
+          if ($selectedCustomerId > 0) {
+            $selectedCustomerStmt = db()->prepare("SELECT id, full_name, phone FROM users WHERE id = ? AND status = 'active' LIMIT 1");
+            $selectedCustomerStmt->execute([$selectedCustomerId]);
+            $selectedCustomer = $selectedCustomerStmt->fetch();
+            if ($selectedCustomer && normalize_phone_number($selectedCustomer['phone']) === $checkoutData['phone']) {
+              $checkoutData['customer_id'] = (int)$selectedCustomer['id'];
+              $checkoutData['name'] = $selectedCustomer['full_name'];
+              $checkoutData['phone'] = normalize_phone_number($selectedCustomer['phone']);
+            }
+          }
 
         if ($checkoutData['order_type'] === 'delivery') {
             $selectedAddressId = isset($_POST['address_id']) ? (int)$_POST['address_id'] : 0;
-            if ($user && $selectedAddressId > 0) {
-                $selectedAddressStmt = db()->prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?');
-                $selectedAddressStmt->execute([$selectedAddressId, $user['id']]);
+            $addressOwnerId = $checkoutData['customer_id'] ?? ($user['id'] ?? 0);
+
+            if ($addressOwnerId > 0 && $selectedAddressId > 0) {
+              $selectedAddressStmt = db()->prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?');
+              $selectedAddressStmt->execute([$selectedAddressId, $addressOwnerId]);
                 $selectedAddress = $selectedAddressStmt->fetch();
                 if ($selectedAddress) {
                     $checkoutData['address_id'] = $selectedAddress['id'];
@@ -50,15 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            if ($user && empty($checkoutData['address_id']) && $checkoutData['house_no'] !== '' && $checkoutData['street'] !== '') {
+            if ($addressOwnerId > 0 && empty($checkoutData['address_id']) && $checkoutData['house_no'] !== '' && $checkoutData['street'] !== '') {
                 $addressLabel = trim((string)($_POST['address_label'] ?? ''));
                 if ($addressLabel === '') {
-                    $addressLabel = 'Address ' . (count($existingAddresses) + 1);
+                $addressCountStmt = db()->prepare('SELECT COUNT(*) FROM addresses WHERE user_id = ?');
+                $addressCountStmt->execute([$addressOwnerId]);
+                $addressLabel = 'Address ' . ((int)$addressCountStmt->fetchColumn() + 1);
                 }
 
                 $insertAddress = db()->prepare('INSERT INTO addresses (user_id, label, house_no, street, city, instructions, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)');
                 $insertAddress->execute([
-                    $user['id'],
+                $addressOwnerId,
                     $addressLabel,
                     $checkoutData['house_no'],
                     $checkoutData['street'],
@@ -73,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['checkout'] = $checkoutData;
 
         if (!empty($_SESSION['checkout']['coupon_code'])) {
-            $coupon = resolve_coupon_code($_SESSION['checkout']['coupon_code'], $user['id'] ?? null);
+          $coupon = resolve_coupon_code($_SESSION['checkout']['coupon_code'], $checkoutData['customer_id'] ?? ($user['id'] ?? null));
             if (!$coupon) {
                 $error = 'This discount code is invalid, expired, or already used.';
             } else {
@@ -119,13 +139,23 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
 
         <div class="toggle-tabs">
           <button type="button" class="tab-delivery active" onclick="setOrderType('delivery')">Delivery</button>
-          <!-- <button type="button" class="tab-takeaway" onclick="setOrderType('takeaway')">Takeaway</button> -->
+          <button type="button" class="tab-takeaway" id="takeawayTab" onclick="setOrderType('takeaway')">Takeaway</button>
         </div>
         <input type="hidden" name="order_type" id="order_type" value="<?= e($saved['order_type'] ?? 'delivery') ?>">
 
         <div class="form-row">
           <div class="form-group"><label>Full Name</label><input class="form-control" name="name" value="<?= e($saved['name'] ?? ($user['full_name'] ?? '')) ?>" required></div>
           <div class="form-group"><label>Phone</label><input class="form-control" name="phone" value="<?= e($saved['phone'] ?? ($user['phone'] ?? '')) ?>" required></div>
+        </div>
+
+        <div class="form-group" id="customerLookupWrap" style="display:none">
+          <label>Customer Phone Search</label>
+          <div class="form-row">
+            <input class="form-control" type="tel" id="customerLookupPhone" placeholder="Enter customer phone number">
+            <button type="button" class="btn btn-outline" id="customerLookupButton">Search</button>
+          </div>
+          <p class="muted" id="customerLookupMessage" style="font-size:12px;margin-top:4px"></p>
+          <input type="hidden" name="selected_customer_id" id="selectedCustomerId" value="">
         </div>
 
         <div class="form-group">
@@ -136,8 +166,7 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
           <?php endif; ?>
         </div>
 
-        <?php if ($user && !empty($existingAddresses)): ?>
-        <div class="form-group">
+        <div class="form-group" id="savedAddressesWrap" style="<?= empty($existingAddresses) ? 'display:none' : '' ?>">
           <label>Saved Addresses</label>
           <select class="form-control" name="address_id" id="addressIdSelect">
             <option value="" <?= empty($saved['address_id'] ?? null) ? 'selected' : '' ?>>Add new address</option>
@@ -155,7 +184,6 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
             <?php endforeach; ?>
           </select>
         </div>
-        <?php endif; ?>
 
         <div id="addressFields">
           <?php if ($user && !empty($existingAddresses)): ?>
@@ -169,13 +197,13 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
           <div class="form-group"><label>Delivery Instructions (Optional)</label><input class="form-control" name="instructions" value="<?= e($saved['instructions'] ?? '') ?>" placeholder="E.g. Call when you arrive"></div>
         </div>
 
-        <div class="form-group">
+        <!-- <div class="form-group">
           <label>Delivery Time</label>
           <select class="form-control" name="time_option" id="time_option" onchange="document.getElementById('scheduledWrap').style.display=this.value==='scheduled'?'block':'none'">
             <option value="asap" <?= ($saved['time_option'] ?? 'asap') === 'asap' ? 'selected' : '' ?>>ASAP (20-30 mins)</option>
             <option value="scheduled" <?= ($saved['time_option'] ?? '') === 'scheduled' ? 'selected' : '' ?>>Schedule Order</option>
           </select>
-        </div>
+        </div> -->
         <div class="form-group" id="scheduledWrap" style="<?= ($saved['time_option'] ?? '') === 'scheduled' ? '' : 'display:none' ?>">
           <label>Pick Date &amp; Time</label>
           <input class="form-control" type="datetime-local" name="scheduled_time" value="<?= e($saved['scheduled_time'] ?? '') ?>">
@@ -189,10 +217,18 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
 
 <script>
 function setOrderType(type) {
+  if (type === 'takeaway' && !isZeeBroastCheckout()) {
+    type = 'delivery';
+  }
   document.getElementById('order_type').value = type;
   document.querySelector('.tab-delivery').classList.toggle('active', type === 'delivery');
   document.querySelector('.tab-takeaway').classList.toggle('active', type === 'takeaway');
   document.getElementById('addressFields').style.display = type === 'delivery' ? 'block' : 'none';
+  const savedAddressesWrap = document.getElementById('savedAddressesWrap');
+  if (savedAddressesWrap) {
+    savedAddressesWrap.style.display = type === 'delivery' && document.getElementById('addressIdSelect').options.length > 1 ? 'block' : 'none';
+  }
+  updateCustomerLookupVisibility();
 }
 
 function fillSelectedAddress() {
@@ -215,11 +251,105 @@ function fillSelectedAddress() {
   document.querySelector('input[name="instructions"]').value = selectedOption.dataset.instructions || '';
 }
 
+function isZeeBroastCheckout() {
+  return document.querySelector('input[name="name"]').value.trim().toLowerCase() === 'zeebroast';
+}
+
+function updateCustomerLookupVisibility() {
+  const lookupWrap = document.getElementById('customerLookupWrap');
+  if (!lookupWrap) return;
+
+  const enabled = isZeeBroastCheckout() && document.getElementById('order_type').value === 'delivery';
+  const takeawayTab = document.getElementById('takeawayTab');
+  const canUseTakeaway = isZeeBroastCheckout();
+  takeawayTab.style.display = canUseTakeaway ? '' : 'none';
+  if (!canUseTakeaway && document.getElementById('order_type').value === 'takeaway') {
+    setOrderType('delivery');
+    return;
+  }
+  lookupWrap.style.display = enabled ? 'block' : 'none';
+  if (!enabled) {
+    document.getElementById('selectedCustomerId').value = '';
+  }
+}
+
+function populateCustomerAddresses(customer) {
+  const addressWrap = document.getElementById('savedAddressesWrap');
+  const addressSelect = document.getElementById('addressIdSelect');
+  addressSelect.innerHTML = '<option value="">Add new address</option>';
+
+  customer.addresses.forEach((address) => {
+    const option = document.createElement('option');
+    option.value = address.id;
+    option.textContent = `${address.label || 'Saved Address'} - ${address.house_no}, ${address.street}, ${address.city}`;
+    option.dataset.label = address.label || '';
+    option.dataset.houseNo = address.house_no || '';
+    option.dataset.street = address.street || '';
+    option.dataset.city = address.city || 'Lahore';
+    option.dataset.instructions = address.instructions || '';
+    addressSelect.appendChild(option);
+  });
+
+  addressWrap.style.display = customer.addresses.length ? 'block' : 'none';
+}
+
+async function searchCustomerByPhone() {
+  const phone = document.getElementById('customerLookupPhone').value.trim();
+  const message = document.getElementById('customerLookupMessage');
+  if (!phone) {
+    message.textContent = 'Enter a phone number to search.';
+    return;
+  }
+
+  message.textContent = 'Searching...';
+  const formData = new FormData();
+  formData.append('phone', phone);
+  formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+  formData.append('operator_name', document.querySelector('input[name="name"]').value);
+
+  try {
+    const response = await fetch('<?= base_url('api/customer_lookup.php') ?>', { method: 'POST', body: formData });
+    const result = await response.json();
+    if (!result.ok) {
+      document.getElementById('selectedCustomerId').value = '';
+      message.textContent = result.message;
+      return;
+    }
+
+    document.getElementById('selectedCustomerId').value = result.customer.id;
+    document.querySelector('input[name="name"]').value = result.customer.full_name;
+    document.querySelector('input[name="phone"]').value = result.customer.phone;
+    populateCustomerAddresses(result.customer);
+    message.textContent = `${result.customer.full_name} found. Select an address below.`;
+  } catch (error) {
+    message.textContent = 'Customer search is unavailable. Please try again.';
+  }
+}
+
 const addressSelect = document.getElementById('addressIdSelect');
 if (addressSelect) {
   addressSelect.addEventListener('change', fillSelectedAddress);
   fillSelectedAddress();
 }
+
+const nameField = document.querySelector('input[name="name"]');
+const phoneField = document.querySelector('input[name="phone"]');
+nameField.addEventListener('input', () => {
+  document.getElementById('selectedCustomerId').value = '';
+  updateCustomerLookupVisibility();
+});
+phoneField.addEventListener('input', () => {
+  document.getElementById('selectedCustomerId').value = '';
+});
+document.querySelectorAll('input[name="house_no"], input[name="street"], input[name="city"], input[name="instructions"]').forEach((field) => {
+  field.addEventListener('input', () => {
+    if (document.getElementById('selectedCustomerId').value) {
+      addressSelect.value = '';
+    }
+  });
+});
+document.getElementById('customerLookupButton').addEventListener('click', searchCustomerByPhone);
+updateCustomerLookupVisibility();
 
 setOrderType(document.getElementById('order_type').value);
 </script>

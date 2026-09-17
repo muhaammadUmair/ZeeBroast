@@ -41,7 +41,7 @@ if ($couponCode) {
 $total = max(0, $subtotal + $deliveryFee - $discount);
 $error = null;
 
-$userId = $_SESSION['user_id'] ?? null;
+$userId = $checkout['customer_id'] ?? ($_SESSION['user_id'] ?? null);
 $loyaltyConfig = loyalty_config();
 $loyaltyEligible = $userId && user_allows_loyalty((int)$userId);
 $loyaltyBalance = $loyaltyEligible ? loyalty_balance((int)$userId) : 0;
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             cart_clear();
-            unset($_SESSION['checkout'], $_SESSION['coupon_code'], $_SESSION['pending_referral_code']);
+            unset($_SESSION['checkout'], $_SESSION['checkout_selected_customer_id'], $_SESSION['coupon_code'], $_SESSION['pending_referral_code']);
 
             redirect(base_url('order-confirmation.php?code=' . urlencode($orderCode)));
         } catch (Throwable $e) {
@@ -156,9 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?= csrf_field() ?>
 
         <label class="pay-option selected"><input type="radio" name="payment_method" value="cod" checked><span class="p-icon">💵</span> Cash on Delivery</label>
-        <label class="pay-option"><input type="radio" name="payment_method" value="jazzcash"><span class="p-icon">📱</span> JazzCash</label>
+        <!-- <label class="pay-option"><input type="radio" name="payment_method" value="jazzcash"><span class="p-icon">📱</span> JazzCash</label>
         <label class="pay-option"><input type="radio" name="payment_method" value="easypaisa"><span class="p-icon">📱</span> EasyPaisa</label>
-        <label class="pay-option"><input type="radio" name="payment_method" value="card"><span class="p-icon">💳</span> Debit / Credit Card</label>
+        <label class="pay-option"><input type="radio" name="payment_method" value="card"><span class="p-icon">💳</span> Debit / Credit Card</label> -->
 
         <?php if ($loyaltyEligible && $loyaltyMaxPoints > 0): ?>
         <div class="form-group" style="margin-top:18px">
