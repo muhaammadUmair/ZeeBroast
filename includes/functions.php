@@ -89,6 +89,11 @@ function is_referral_coupon(array $coupon): bool
     return !empty($coupon['is_referral']);
 }
 
+function is_reusable_coupon(array $coupon): bool
+{
+    return in_array(strtoupper((string)($coupon['code'] ?? '')), ['WELCOME10', 'WELCOME20'], true);
+}
+
 function generate_unique_coupon_code(string $prefix = 'ZB'): string
 {
     do {
@@ -229,8 +234,8 @@ function resolve_coupon_code(string $code, ?int $userId = null): ?array
         return null;
     }
 
-    // Referral codes are unlimited-use for everyone (including the original owner) — no per-user usage check.
-    if ($userId !== null && !is_referral_coupon($coupon)) {
+    // Referral and configured welcome coupons are reusable — no per-user usage check.
+    if ($userId !== null && !is_referral_coupon($coupon) && !is_reusable_coupon($coupon)) {
         $usageStmt = db()->prepare('SELECT * FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
         $usageStmt->execute([$userId, $code]);
         $usage = $usageStmt->fetch();
@@ -250,11 +255,11 @@ function mark_coupon_used(int $userId, string $code): void
     }
 
     ensure_referral_coupon_schema();
-    $couponStmt = db()->prepare('SELECT is_referral FROM coupons WHERE code = ? LIMIT 1');
+    $couponStmt = db()->prepare('SELECT code, is_referral FROM coupons WHERE code = ? LIMIT 1');
     $couponStmt->execute([$code]);
     $coupon = $couponStmt->fetch();
-    if ($coupon && is_referral_coupon($coupon)) {
-        return; // Referral codes are never marked "used" — they stay reusable indefinitely.
+    if ($coupon && (is_referral_coupon($coupon) || is_reusable_coupon($coupon))) {
+        return; // Reusable coupons are never marked "used".
     }
 
     $stmt = db()->prepare('SELECT id FROM user_coupon_codes WHERE user_id = ? AND code = ? LIMIT 1');
