@@ -92,6 +92,7 @@ require_once __DIR__ . '/includes/header.php';
           </form>
         </td>
         <td>
+          <a href="<?= base_url('admin/customer-edit.php?id=' . (int)$c['id']) ?>" class="btn btn-outline btn-sm">Edit</a>
           <form method="post">
             <?= csrf_field() ?>
             <input type="hidden" name="form_action" value="toggle">
