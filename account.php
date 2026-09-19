@@ -82,8 +82,8 @@ if ($loyaltyVisible) {
       <div class="info-grid" style="margin-bottom:16px">
         <div><p class="muted">Available Points</p><p style="font-size:22px;font-weight:800"><?= (int)$loyaltyBalance ?></p></div>
         <div><p class="muted">Value</p><p style="font-size:22px;font-weight:800"><?= money_precise(loyalty_points_value($loyaltyBalance, $loyaltyConfig)) ?></p></div>
-        <div><p class="muted">Rate</p><p style="font-size:22px;font-weight:800">1 = <?= money_precise($loyaltyConfig['point_value']) ?></p></div>
-        <div><p class="muted">Earn Rate</p><p style="font-size:22px;font-weight:800"><?= money($loyaltyConfig['spend_amount_per_point']) ?> = 1pt</p></div>
+        <!-- <div><p class="muted">Rate</p><p style="font-size:22px;font-weight:800">1 = <?= money_precise($loyaltyConfig['point_value']) ?></p></div>
+        <div><p class="muted">Earn Rate</p><p style="font-size:22px;font-weight:800"><?= money($loyaltyConfig['spend_amount_per_point']) ?> = 1pt</p></div> -->
       </div>
 
       <?php if (empty($loyaltyTransactions)): ?>

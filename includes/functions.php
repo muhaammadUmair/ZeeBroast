@@ -103,8 +103,8 @@ function generate_unique_coupon_code(string $prefix = 'ZB'): string
 
 function customer_whatsapp_link(string $phone, string $couponCode): string
 {
-    //$digits = normalize_phone_number('03035636080');
-    $digits = normalize_phone_number('03334418803');
+    $digits = normalize_phone_number('03035636080');
+    //$digits = normalize_phone_number('03334418803');
     if ($digits === '') {
         return '';
     }
