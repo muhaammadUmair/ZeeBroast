@@ -65,8 +65,7 @@ $config = loyalty_config();
 $referralCodeStmt = $pdo->prepare('SELECT uc.code FROM user_coupon_codes uc INNER JOIN coupons c ON c.code = uc.code WHERE uc.user_id = ? AND c.is_referral = 1 ORDER BY uc.id DESC LIMIT 1');
 $referralCodeStmt->execute([$userId]);
 $referralCode = $referralCodeStmt->fetchColumn() ?: null;
-$referralShareUrl = $referralCode ? base_url('index.php?ref=' . urlencode($referralCode)) : null;
-$referralQrUrl = $referralShareUrl ? 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' . urlencode($referralShareUrl) : null;
+$referralShareUrl = $referralCode ? 'http://zeebroast.com/index.php?ref=' . urlencode($referralCode) : null;
 
 $txStmt = $pdo->prepare('SELECT * FROM loyalty_points_transactions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 100');
 $txStmt->execute([$userId]);
@@ -100,7 +99,7 @@ require_once __DIR__ . '/includes/header.php';
     <div class="panel">
       <div class="panel-head"><h2>Referral QR Code</h2></div>
       <p style="color:var(--muted);font-size:12px">Code</p><p style="margin-bottom:10px"><strong><?= e($referralCode) ?></strong></p>
-      <img src="<?= e($referralQrUrl) ?>" alt="Referral QR code" style="border-radius:8px;margin-bottom:10px" width="180" height="180">
+      <div id="referralQrCode" aria-label="Referral QR code" style="width:580px;height:580px;margin-bottom:10px"></div>
       <p style="color:var(--muted);font-size:12px">Share Link</p>
       <p style="word-break:break-all;font-size:12.5px"><?= e($referralShareUrl) ?></p>
       <p style="color:var(--muted);font-size:11.5px;margin-top:8px">Scanning this QR opens the site with the code pre-applied — it's auto-filled at checkout.</p>
@@ -145,5 +144,18 @@ require_once __DIR__ . '/includes/header.php';
     </table>
   </div>
 </div>
+
+<?php if ($referralShareUrl): ?>
+<script src="https://cdn.jsdelivr.net/npm/qr-creator/dist/qr-creator.min.js"></script>
+<script>
+  QrCreator.render({
+    text: <?= json_encode($referralShareUrl) ?>,
+    ecLevel: 'H',
+    fill: '#111111',
+    background: '#ffffff',
+    size: 180
+  }, document.getElementById('referralQrCode'));
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

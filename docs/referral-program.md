@@ -7,12 +7,12 @@ tables as regular discount coupons, with a dedicated `is_referral` flag.
 
 ## How it's different from a normal discount coupon
 
-| | Regular coupon | Referral code |
-|---|---|---|
-| Discount | Percent or flat amount | Always **Rs. 0** |
-| Reuse | Once per customer | **Unlimited**, by anyone, including the owner |
-| Effect | Reduces order total | Triggers [loyalty points](loyalty-points.md) for its owner |
-| Linked to a customer? | No | Yes — via `user_coupon_codes` |
+|                       | Regular coupon         | Referral code                                              |
+| --------------------- | ---------------------- | ---------------------------------------------------------- |
+| Discount              | Percent or flat amount | Always **Rs. 0**                                           |
+| Reuse                 | Once per customer      | **Unlimited**, by anyone, including the owner              |
+| Effect                | Reduces order total    | Triggers [loyalty points](loyalty-points.md) for its owner |
+| Linked to a customer? | No                     | Yes — via `user_coupon_codes`                              |
 
 A code only awards points if it's **linked to a specific customer** (created via the
 "Generate" flow described below). A coupon manually marked "Referral Code" in
@@ -43,14 +43,14 @@ Open a customer's **Admin → Loyalty Points** page. If they have a referral cod
 see a **Referral QR Code** panel with:
 
 - The code itself
-- A scannable QR image (generated via the public `api.qrserver.com` service — only the
-  public share URL is sent, no customer data)
-- The full share link, e.g. `https://yoursite.com/index.php?ref=CODE`
+- A scannable QR image rendered in the browser with the `qr-creator` JavaScript library
+  from jsDelivr
+- The full share link, e.g. `http://zeebroast.com/index.php?ref=CODE`
 
 ## What happens when someone scans the QR / opens the link
 
 1. The `?ref=CODE` link works on **any** storefront page (home, menu, deals, etc.).
-2. If the code is valid, active, and flagged as a referral code, it's stored in the visitor's session and a one-time confirmation banner appears: *"Referral code X applied — it'll be used automatically at checkout."*
+2. If the code is valid, active, and flagged as a referral code, it's stored in the visitor's session and a one-time confirmation banner appears: _"Referral code X applied — it'll be used automatically at checkout."_
 3. The customer shops normally. At checkout, the **Discount / Referral Code** field is pre-filled automatically — no typing needed.
 4. If they clear the field and submit anyway, the auto-fill won't reappear for that session (their choice is respected).
 5. Whether the person checking out is **logged in, a different logged-in customer, or a guest**, the points always go to the code's **owner** — never to whoever happens to be placing the order.
