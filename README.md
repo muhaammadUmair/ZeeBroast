@@ -30,6 +30,7 @@ cart/checkout/payment flow, order tracking, customer accounts, and an admin pane
    DB_NAME=zeebroast
    DB_USER=your_db_user
    DB_PASS=your_db_password
+   POS_API_URL=https://your-pos-host.example/pos/Script/public
    ```
 3. **Point your web server's document root at the project root** (this folder), so that
    `/assets`, `/admin`, `/api` and `/uploads` are all reachable from the site root.

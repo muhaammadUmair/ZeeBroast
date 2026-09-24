@@ -18,6 +18,55 @@ function setting(string $key, $default = '')
     return $cache[$key] ?? $default;
 }
 
+/**
+ * Determines whether the restaurant is currently accepting orders.
+ * Manual override (closed toggle) takes priority over the scheduled hours.
+ * Returns ['open' => bool, 'reason' => string|null].
+ */
+function restaurant_status(): array
+{
+    if (setting('restaurant_manual_closed', '0') === '1') {
+        $message = trim((string)setting('restaurant_closed_message', ''));
+        return [
+            'open' => false,
+            'reason' => $message !== '' ? $message : 'We are temporarily closed right now. Please check back soon.',
+        ];
+    }
+
+    if (setting('restaurant_hours_enabled', '0') === '1') {
+        $openTime = trim((string)setting('restaurant_open_time', ''));
+        $closeTime = trim((string)setting('restaurant_close_time', ''));
+
+        if ($openTime !== '' && $closeTime !== '') {
+            $now = new DateTime('now');
+            $open = DateTime::createFromFormat('H:i', $openTime) ?: null;
+            $close = DateTime::createFromFormat('H:i', $closeTime) ?: null;
+
+            if ($open && $close) {
+                $open->setDate((int)$now->format('Y'), (int)$now->format('m'), (int)$now->format('d'));
+                $close->setDate((int)$now->format('Y'), (int)$now->format('m'), (int)$now->format('d'));
+
+                if ($close <= $open) {
+                    // Overnight schedule (e.g. 17:00 - 02:00): closing time rolls into the next day.
+                    $close->modify('+1 day');
+                    if ($now < $open) {
+                        $now = (clone $now)->modify('+1 day');
+                    }
+                }
+
+                if ($now < $open || $now >= $close) {
+                    return [
+                        'open' => false,
+                        'reason' => sprintf('We are closed right now. Our hours are %s - %s.', $open->format('g:i A'), $close->format('g:i A')),
+                    ];
+                }
+            }
+        }
+    }
+
+    return ['open' => true, 'reason' => null];
+}
+
 function e(?string $value): string
 {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
@@ -574,19 +623,64 @@ function ensure_pos_sync_schema(): void
 
 function pos_api_request(string $method, string $path, array $payload): array
 {
-    if (POS_API_URL === '' || POS_API_TOKEN === '') return ['success' => false, 'message' => 'POS integration is not configured'];
-    $context = stream_context_create(['http' => [
-        'method' => $method,
-        'header' => "Authorization: Bearer " . POS_API_TOKEN . "\r\nContent-Type: application/json\r\nAccept: application/json\r\n",
-        'content' => json_encode($payload), 'timeout' => 10, 'ignore_errors' => true,
-    ]]);
-    $body = @file_get_contents(POS_API_URL . $path, false, $context);
+    $url = POS_API_URL . $path;
+    $orderCode = (string)($payload['order_code'] ?? 'unknown');
+    $startedAt = microtime(true);
+    if (POS_API_URL === '' || POS_API_TOKEN === '') {
+        error_log('[POS API] Not configured method=' . $method . ' path=' . $path . ' order_code=' . $orderCode);
+        return ['success' => false, 'message' => 'POS integration is not configured'];
+    }
     $status = 0;
-    foreach (($http_response_header ?? []) as $header) {
-        if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $match)) $status = (int)$match[1];
+    $body = false;
+    $transportError = null;
+    $transport = 'stream';
+    $jsonPayload = json_encode($payload);
+
+    if (function_exists('curl_init')) {
+        $transport = 'curl';
+        $curl = curl_init($url);
+        curl_setopt_array($curl, [
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . POS_API_TOKEN,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_POSTFIELDS => $jsonPayload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+        $body = curl_exec($curl);
+        $status = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        if ($body === false) {
+            $transportError = ['message' => curl_error($curl)];
+        }
+        curl_close($curl);
+    } else {
+        $context = stream_context_create(['http' => [
+            'method' => $method,
+            'header' => "Authorization: Bearer " . POS_API_TOKEN . "\r\nContent-Type: application/json\r\nAccept: application/json\r\n",
+            'content' => $jsonPayload, 'timeout' => 10, 'ignore_errors' => true,
+        ]]);
+        $body = @file_get_contents($url, false, $context);
+        $transportError = $body === false ? error_get_last() : null;
+        foreach (($http_response_header ?? []) as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $match)) $status = (int)$match[1];
+        }
     }
     $response = json_decode((string)$body, true);
-    return is_array($response) && $status >= 200 && $status < 300 ? $response : ['success' => false, 'message' => $response['message'] ?? ('POS API HTTP ' . $status)];
+    $durationMs = (int)round((microtime(true) - $startedAt) * 1000);
+    $message = is_array($response) ? (string)($response['message'] ?? '') : '';
+    $success = is_array($response) && $status >= 200 && $status < 300;
+    error_log('[POS API] ' . ($success ? 'success' : 'failure') .
+        ' method=' . $method . ' path=' . $path . ' status=' . $status .
+        ' duration_ms=' . $durationMs . ' transport=' . $transport . ' order_code=' . $orderCode .
+        ($transportError ? ' transport_error=' . substr((string)$transportError['message'], 0, 250) : '') .
+        ($message !== '' ? ' message=' . substr($message, 0, 250) : ''));
+    return $success ? $response : ['success' => false, 'message' => $message !== '' ? $message : ('POS API HTTP ' . $status)];
 }
 
 function sync_order_to_pos(int $orderId): void

@@ -4,6 +4,7 @@ require_once __DIR__ . '/includes/header.php';
 
 $items = cart_items();
 $subtotal = cart_subtotal();
+$restaurantStatus = restaurant_status();
 ?>
 
 <div class="page-header">
@@ -55,6 +56,9 @@ $subtotal = cart_subtotal();
         </div>
 
         <a href="<?= base_url('checkout.php') ?>" class="btn btn-primary btn-block" style="margin-top:20px">Proceed to Checkout</a>
+        <?php if (!$restaurantStatus['open']): ?>
+          <div class="alert alert-error" style="margin-top:12px"><?= e($restaurantStatus['reason']) ?></div>
+        <?php endif; ?>
       <?php endif; ?>
     </div>
   </div>

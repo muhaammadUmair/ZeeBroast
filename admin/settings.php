@@ -17,15 +17,23 @@ $fields = [
     'currency_symbol', 'primary_color', 'dark_bg',
     'hero_title_line1', 'hero_title_line2', 'hero_title_line3', 'hero_subtitle',
     'order_id_prefix', 'halal_badge',
+    'restaurant_manual_closed', 'restaurant_hours_enabled', 'restaurant_open_time', 'restaurant_close_time', 'restaurant_closed_message',
 ];
-$checkboxFields = ['halal_badge'];
+$checkboxFields = ['halal_badge', 'restaurant_manual_closed', 'restaurant_hours_enabled'];
 $loyaltyFields = [
     'loyalty_points_enabled', 'loyalty_spend_amount_per_point', 'loyalty_point_value',
     'loyalty_earn_on_delivery_fee', 'loyalty_earn_after_discount', 'loyalty_award_status',
     'loyalty_max_redeem_percent',
 ];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf()) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf() && isset($_POST['toggle_restaurant_status'])) {
+    $isClosed = $_POST['toggle_restaurant_status'] === 'close' ? '1' : '0';
+    $stmt = $pdo->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+    $stmt->execute(['restaurant_manual_closed', $isClosed]);
+    $success = $isClosed === '1' ? 'Restaurant marked as closed. Checkout is now blocked.' : 'Restaurant marked as open. Checkout is now allowed.';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf() && !isset($_POST['toggle_restaurant_status'])) {
     $stmt = $pdo->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
     foreach ($fields as $key) {
         $stmt->execute([$key, in_array($key, $checkboxFields, true) ? (isset($_POST[$key]) ? '1' : '0') : trim($_POST[$key] ?? '')]);
@@ -52,6 +60,19 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 
 <?php if ($success): ?><div class="alert alert-success"><?= e($success) ?></div><?php endif; ?>
+
+<div class="panel">
+  <div class="panel-head"><h2>Quick Action</h2></div>
+  <p style="margin-top:0">Current status: <strong><?= ($current['restaurant_manual_closed'] ?? '0') === '1' ? 'Closed' : 'Open' ?></strong></p>
+  <form method="post">
+    <?= csrf_field() ?>
+    <?php if (($current['restaurant_manual_closed'] ?? '0') === '1'): ?>
+      <button type="submit" name="toggle_restaurant_status" value="open" class="btn btn-primary">Reopen Restaurant</button>
+    <?php else: ?>
+      <button type="submit" name="toggle_restaurant_status" value="close" class="btn btn-danger">Close Restaurant Now</button>
+    <?php endif; ?>
+  </form>
+</div>
 
 <form method="post">
   <?= csrf_field() ?>
@@ -128,6 +149,26 @@ require_once __DIR__ . '/includes/header.php';
     <div class="checkbox-row"><input type="checkbox" id="loyalty_earn_on_delivery_fee" name="loyalty_earn_on_delivery_fee" <?= ($current['loyalty_earn_on_delivery_fee'] ?? '0') === '1' ? 'checked' : '' ?>><label for="loyalty_earn_on_delivery_fee" style="margin:0">Earn points on delivery fee</label></div>
     <div class="checkbox-row"><input type="checkbox" id="loyalty_earn_after_discount" name="loyalty_earn_after_discount" <?= ($current['loyalty_earn_after_discount'] ?? '1') === '1' ? 'checked' : '' ?>><label for="loyalty_earn_after_discount" style="margin:0">Deduct coupon/discount before calculating earned points</label></div>
     <p style="color:var(--muted);font-size:12px;margin-top:8px">Example: Spend Rs. <?= e($current['loyalty_spend_amount_per_point'] ?? '100') ?> = 1 point, 1 point = Rs. <?= e($current['loyalty_point_value'] ?? '1') ?>. A qualifying Rs. 1,000 order would earn <?= (int)floor(1000 / max(0.01, (float)($current['loyalty_spend_amount_per_point'] ?? 100))) ?> points worth Rs. <?= e(number_format((int)floor(1000 / max(0.01, (float)($current['loyalty_spend_amount_per_point'] ?? 100))) * (float)($current['loyalty_point_value'] ?? 1), 2)) ?>.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Restaurant Availability</h2></div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="restaurant_manual_closed" name="restaurant_manual_closed" <?= ($current['restaurant_manual_closed'] ?? '0') === '1' ? 'checked' : '' ?>>
+      <label for="restaurant_manual_closed" style="margin:0">Restaurant is temporarily closed (blocks checkout immediately, overrides hours below)</label>
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group"><label>Closed Message (shown to customers)</label><input class="form-control" name="restaurant_closed_message" value="<?= e($current['restaurant_closed_message'] ?? '') ?>" placeholder="We are temporarily closed right now. Please check back soon."></div>
+    </div>
+    <div class="checkbox-row" style="margin-top:12px">
+      <input type="checkbox" id="restaurant_hours_enabled" name="restaurant_hours_enabled" <?= ($current['restaurant_hours_enabled'] ?? '0') === '1' ? 'checked' : '' ?>>
+      <label for="restaurant_hours_enabled" style="margin:0">Automatically close checkout outside business hours</label>
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group"><label>Opening Time</label><input class="form-control" type="time" name="restaurant_open_time" value="<?= e($current['restaurant_open_time'] ?? '11:00') ?>"></div>
+      <div class="form-group"><label>Closing Time</label><input class="form-control" type="time" name="restaurant_close_time" value="<?= e($current['restaurant_close_time'] ?? '23:00') ?>"></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin-top:8px">If closing time is earlier than opening time, hours are treated as overnight (e.g. 5:00 PM - 2:00 AM).</p>
   </div>
 
   <button type="submit" class="btn btn-primary">Save Settings</button>

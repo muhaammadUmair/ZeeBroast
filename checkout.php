@@ -6,6 +6,28 @@ if (cart_subtotal() <= 0) {
     redirect(base_url('cart.php'));
 }
 
+$restaurantStatus = restaurant_status();
+if (!$restaurantStatus['open']) {
+    ?>
+    <div class="page-header">
+      <div class="container">
+        <h1>Checkout</h1>
+        <div class="breadcrumb"><a href="<?= base_url('index.php') ?>">Home</a> / <a href="<?= base_url('cart.php') ?>">Cart</a> / Checkout</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="container flow-wrap">
+        <div class="flow-card">
+          <div class="alert alert-error"><?= e($restaurantStatus['reason']) ?></div>
+          <a href="<?= base_url('cart.php') ?>" class="btn btn-outline" style="margin-top:12px">Back to Cart</a>
+        </div>
+      </div>
+    </div>
+    <?php
+    require_once __DIR__ . '/includes/footer.php';
+    exit;
+}
+
 $error = null;
 
 $user = current_user();
@@ -19,14 +41,16 @@ if ($user) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf()) {
         $error = 'Invalid session, please try again.';
+    } elseif (!restaurant_status()['open']) {
+        $error = restaurant_status()['reason'];
     } else {
         $checkoutData = [
-          'order_type'    => $_POST['order_type'] === 'takeaway' && strcasecmp(trim((string)($_POST['name'] ?? '')), 'ZeeBroast') === 0 ? 'takeaway' : 'delivery',
+          'order_type'    => ($_POST['order_type'] ?? '') === 'takeaway' && strcasecmp(trim((string)($_POST['name'] ?? '')), 'ZeeBroast') === 0 ? 'takeaway' : 'delivery',
             'house_no'      => trim($_POST['house_no'] ?? ''),
             'street'        => trim($_POST['street'] ?? ''),
             'city'          => trim($_POST['city'] ?? 'Lahore'),
             'instructions'  => trim($_POST['instructions'] ?? ''),
-            'time_option'   => $_POST['time_option'] === 'scheduled' ? 'scheduled' : 'asap',
+            'time_option'   => ($_POST['time_option'] ?? 'asap') === 'scheduled' ? 'scheduled' : 'asap',
             'scheduled_time'=> trim($_POST['scheduled_time'] ?? ''),
             'name'          => trim($_POST['name'] ?? ''),
             'phone'         => normalize_phone_number($_POST['phone'] ?? ''),
