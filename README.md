@@ -56,6 +56,7 @@ directly in the `admin_users` table).
 ```bash
 DB_HOST=localhost DB_NAME=zeebroast DB_USER=root DB_PASS= php -S localhost:8000
 ```
+
 Then open `http://localhost:8000/`.
 
 ## Project structure
@@ -76,6 +77,7 @@ Then open `http://localhost:8000/`.
 ## Features
 
 **Storefront**
+
 - Home page: hero, trust badges, signature menu, deals, delivery banner
 - Menu page with category filter, price filter, sorting, and pagination
 - Category overview + individual category listing pages
@@ -88,6 +90,7 @@ Then open `http://localhost:8000/`.
 - Contact form (saved to database) and About page
 
 **Admin panel**
+
 - Dashboard with revenue/order stats
 - Categories, products and deals CRUD with image upload
 - Order management with status + payment status updates
