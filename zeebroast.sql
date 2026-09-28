@@ -154,6 +154,7 @@ CREATE TABLE `deals` (
   `icon` varchar(10) DEFAULT NULL,
   `original_price` decimal(10,2) NOT NULL,
   `deal_price` decimal(10,2) NOT NULL,
+  `cost_price` decimal(10,2) DEFAULT NULL,
   `discount_percent` int(11) NOT NULL DEFAULT 0,
   `status` enum('active','inactive') NOT NULL DEFAULT 'active',
   `sort_order` int(11) NOT NULL DEFAULT 0,
@@ -201,6 +202,7 @@ CREATE TABLE `orders` (
   `street` varchar(150) DEFAULT NULL,
   `city` varchar(100) DEFAULT NULL,
   `delivery_instructions` varchar(255) DEFAULT NULL,
+  `delivery_location_url` varchar(2048) DEFAULT NULL,
   `delivery_time_option` enum('asap','scheduled') NOT NULL DEFAULT 'asap',
   `scheduled_time` datetime DEFAULT NULL,
   `payment_method` enum('cod','jazzcash','easypaisa','card') NOT NULL DEFAULT 'cod',
@@ -239,6 +241,7 @@ CREATE TABLE `order_items` (
   `deal_id` int(10) UNSIGNED DEFAULT NULL,
   `item_name` varchar(150) NOT NULL,
   `unit_price` decimal(10,2) NOT NULL,
+  `cost_price_snapshot` decimal(10,2) DEFAULT NULL,
   `quantity` int(11) NOT NULL DEFAULT 1,
   `line_total` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -270,6 +273,7 @@ CREATE TABLE `products` (
   `description` text DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
   `sale_price` decimal(10,2) DEFAULT NULL,
+  `cost_price` decimal(10,2) DEFAULT NULL,
   `image` varchar(255) DEFAULT NULL,
   `icon` varchar(10) DEFAULT NULL COMMENT 'emoji placeholder shown when no image uploaded',
   `is_featured` tinyint(1) NOT NULL DEFAULT 0,

@@ -17,11 +17,11 @@ On `cart.php` each line shows a thumbnail, name, price, quantity controls (+/−
 
 ## Checkout flow
 
-1. **Checkout** (`checkout.php`) — customer chooses delivery or takeaway, enters/selects a delivery address, sets delivery time (ASAP or scheduled), enters name/phone, and optionally enters a **Discount / Referral Code**.
+1. **Checkout** (`checkout.php`) — customer chooses delivery or takeaway, enters/selects a delivery address, optionally adds a Google Maps pin link and delivery instructions, sets delivery time (ASAP or scheduled), enters name/phone, and optionally enters a **Discount / Referral Code**.
    - If the customer arrived via a [referral QR/link](referral-program.md), this field is pre-filled automatically.
    - Logged-in customers can pick a saved address or add a new one (saved for next time).
 2. **Payment** (`payment.php`) — shows the order summary (subtotal, delivery fee, discount, [loyalty points redemption](loyalty-points.md) if eligible) and lets the customer choose a payment method: Cash on Delivery, JazzCash, EasyPaisa, or Card. All totals and discounts are recalculated server-side here — nothing from the previous page is trusted blindly.
-3. **Order confirmation** (`order-confirmation.php`) — shows the final order code, totals, and estimated delivery time.
+3. **Order confirmation** (`order-confirmation.php`) — shows the final order code, totals, and estimated delivery time. Admin order details include a copy-ready delivery message with the address, optional pin link, items, total, and customer note.
 
 ## Delivery fee & minimum order
 

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_admin();
+ensure_delivery_location_schema();
 
 $admin_page_title = 'Orders';
 $active_admin = 'orders';
@@ -48,6 +49,24 @@ $stmt = $pdo->prepare("SELECT * FROM orders $whereSql ORDER BY created_at DESC L
 $stmt->execute($params);
 $orders = $stmt->fetchAll();
 
+$orderItems = [];
+$deliveryMessages = [];
+if ($orders) {
+  $orderIds = array_map(static fn($order) => (int)$order['id'], $orders);
+  $itemPlaceholders = implode(',', array_fill(0, count($orderIds), '?'));
+  $itemStmt = $pdo->prepare("SELECT order_id, item_name, quantity, line_total FROM order_items WHERE order_id IN ($itemPlaceholders) ORDER BY id");
+  $itemStmt->execute($orderIds);
+  foreach ($itemStmt->fetchAll() as $item) {
+    $orderItems[(int)$item['order_id']][] = $item;
+  }
+
+  foreach ($orders as $order) {
+    if ($order['order_type'] === 'delivery') {
+      $deliveryMessages[(int)$order['id']] = build_delivery_order_message($order, $orderItems[(int)$order['id']] ?? []);
+    }
+  }
+}
+
 $statusColors = [
     'pending' => 'badge-yellow', 'confirmed' => 'badge-blue', 'preparing' => 'badge-blue',
     'on_the_way' => 'badge-blue', 'delivered' => 'badge-green', 'cancelled' => 'badge-red',
@@ -87,6 +106,9 @@ require_once __DIR__ . '/includes/header.php';
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <a href="<?= base_url('admin/order-view.php?id=' . (int)$o['id']) ?>" class="btn btn-outline btn-sm">View</a>
+            <?php if (isset($deliveryMessages[(int)$o['id']])): ?>
+            <button type="button" class="btn btn-outline btn-sm js-copy-order-message" data-order-id="<?= (int)$o['id'] ?>">Copy Message</button>
+            <?php endif; ?>
             <?php if ($o['status'] !== 'delivered' && $o['status'] !== 'cancelled'): ?>
             <form method="post" action="<?= base_url('admin/orders.php') ?>">
               <?= csrf_field() ?>
@@ -111,6 +133,38 @@ require_once __DIR__ . '/includes/header.php';
       <?php endforeach; ?>
     </tbody>
   </table>
+
+  <?php if ($deliveryMessages): ?>
+  <script>
+  const orderDeliveryMessages = <?= json_encode($deliveryMessages, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?: '{}' ?>;
+  document.querySelectorAll('.js-copy-order-message').forEach((button) => {
+    button.addEventListener('click', async function () {
+      const originalText = this.textContent;
+      const text = orderDeliveryMessages[this.dataset.orderId];
+      try {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (error) {
+          const temporaryInput = document.createElement('textarea');
+          temporaryInput.value = text;
+          temporaryInput.style.position = 'fixed';
+          temporaryInput.style.opacity = '0';
+          document.body.appendChild(temporaryInput);
+          temporaryInput.focus();
+          temporaryInput.select();
+          const copied = document.execCommand('copy');
+          temporaryInput.remove();
+          if (!copied) throw new Error('Clipboard copy failed');
+        }
+        this.textContent = 'Copied!';
+      } catch (error) {
+        this.textContent = 'Copy failed';
+      }
+      window.setTimeout(() => { this.textContent = originalText; }, 1800);
+    });
+  });
+  </script>
+  <?php endif; ?>
 
   <?php if ($totalPages > 1): ?>
   <div class="pagination">

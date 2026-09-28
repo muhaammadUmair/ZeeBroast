@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_admin();
+ensure_product_cost_schema();
 
 $admin_page_title = 'Products';
 $active_admin = 'products';
@@ -48,15 +49,16 @@ require_once __DIR__ . '/includes/header.php';
   </form>
 
   <table>
-    <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Featured</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Cost</th><th>Featured</th><th>Status</th><th></th></tr></thead>
     <tbody>
-      <?php if (empty($products)): ?><tr><td colspan="7">No products found.</td></tr><?php endif; ?>
+      <?php if (empty($products)): ?><tr><td colspan="8">No products found.</td></tr><?php endif; ?>
       <?php foreach ($products as $p): ?>
       <tr>
         <td><div class="thumb-preview"><?php $u = media_url($p['image']); if ($u): ?><img src="<?= e($u) ?>" alt=""><?php else: echo e($p['icon'] ?: '🍗'); endif; ?></div></td>
         <td><?= e($p['name']) ?></td>
         <td><?= e($p['cat_name']) ?></td>
         <td><?= money($p['sale_price'] ?: $p['price']) ?> <?= $p['sale_price'] ? '<span style="text-decoration:line-through;color:var(--muted);font-size:11px">' . money($p['price']) . '</span>' : '' ?></td>
+        <td><?= $p['cost_price'] !== null ? money($p['cost_price']) : '—' ?></td>
         <td><?= $p['is_featured'] ? '⭐' : '' ?></td>
         <td><span class="badge <?= $p['status'] === 'active' ? 'badge-green' : 'badge-gray' ?>"><?= e(ucfirst($p['status'])) ?></span></td>
         <td style="display:flex;gap:8px">

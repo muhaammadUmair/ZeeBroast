@@ -1,6 +1,10 @@
 <?php
 $page_title = 'Payment Method';
 require_once __DIR__ . '/includes/header.php';
+ensure_delivery_location_schema();
+ensure_product_cost_schema();
+ensure_deal_cost_schema();
+ensure_order_item_cost_schema();
 
 if (cart_subtotal() <= 0) {
     redirect(base_url('cart.php'));
@@ -72,16 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("INSERT INTO orders
                 (order_code, user_id, guest_name, guest_phone, guest_email, order_type, house_no, street, city,
-                 delivery_instructions, delivery_time_option, scheduled_time, payment_method, subtotal, delivery_fee,
+                 delivery_instructions, delivery_location_url, delivery_time_option, scheduled_time, payment_method, subtotal, delivery_fee,
                  discount, coupon_code, total, estimated_minutes, loyalty_points_redeemed, loyalty_discount, loyalty_referral_triggered, loyalty_referral_owner_id)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             $stmt->execute([
                 $orderCode,
                 $userId,
                 $checkout['name'], $checkout['phone'], $checkout['email'] ?: null,
                 $checkout['order_type'],
                 $checkout['house_no'] ?: null, $checkout['street'] ?: null, $checkout['city'] ?: null,
-                $checkout['instructions'] ?: null,
+                $checkout['instructions'] ?: null, ($checkout['location_url'] ?? '') ?: null,
                 $checkout['time_option'],
                 $checkout['time_option'] === 'scheduled' && $checkout['scheduled_time'] ? $checkout['scheduled_time'] : null,
                 $method, $subtotal, $deliveryFee, $discount, $couponCode, $finalTotal, $estMinutes,
@@ -89,13 +93,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $orderId = (int)$pdo->lastInsertId();
 
-            $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, deal_id, item_name, unit_price, quantity, line_total) VALUES (?,?,?,?,?,?,?)");
+            $itemStmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, deal_id, item_name, unit_price, cost_price_snapshot, quantity, line_total) VALUES (?,?,?,?,?,?,?,?)");
+            $productCostStmt = $pdo->prepare('SELECT cost_price FROM products WHERE id = ?');
+            $dealCostStmt = $pdo->prepare('SELECT cost_price FROM deals WHERE id = ?');
             foreach (cart_items() as $item) {
+              if ($item['type'] === 'product') {
+                $productCostStmt->execute([$item['id']]);
+                $unitCost = $productCostStmt->fetchColumn();
+              } else {
+                $dealCostStmt->execute([$item['id']]);
+                $unitCost = $dealCostStmt->fetchColumn();
+              }
                 $itemStmt->execute([
                     $orderId,
                     $item['type'] === 'product' ? $item['id'] : null,
                     $item['type'] === 'deal' ? $item['id'] : null,
-                    $item['name'], $item['price'], $item['qty'], $item['price'] * $item['qty'],
+                $item['name'], $item['price'], $unitCost !== false ? $unitCost : null, $item['qty'], $item['price'] * $item['qty'],
                 ]);
             }
 

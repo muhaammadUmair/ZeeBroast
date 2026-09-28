@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Checkout';
 require_once __DIR__ . '/includes/header.php';
+ensure_delivery_location_schema();
 
 if (cart_subtotal() <= 0) {
     redirect(base_url('cart.php'));
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'street'        => trim($_POST['street'] ?? ''),
             'city'          => trim($_POST['city'] ?? 'Lahore'),
             'instructions'  => trim($_POST['instructions'] ?? ''),
+            'location_url'  => ($_POST['order_type'] ?? '') === 'takeaway' ? '' : trim((string)($_POST['location_url'] ?? '')),
             'time_option'   => ($_POST['time_option'] ?? 'asap') === 'scheduled' ? 'scheduled' : 'asap',
             'scheduled_time'=> trim($_POST['scheduled_time'] ?? ''),
             'name'          => trim($_POST['name'] ?? ''),
@@ -131,6 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($_SESSION['checkout']['order_type'] === 'delivery' && ($_SESSION['checkout']['house_no'] === '' || $_SESSION['checkout']['street'] === '')) {
             $error = 'Please provide your delivery address.';
+        } elseif ($_SESSION['checkout']['location_url'] !== '' && (
+          !filter_var($_SESSION['checkout']['location_url'], FILTER_VALIDATE_URL)
+          || !in_array(strtolower((string)parse_url($_SESSION['checkout']['location_url'], PHP_URL_SCHEME)), ['http', 'https'], true)
+        )) {
+          $error = 'Please enter a valid Google Maps link starting with http:// or https://.';
         } elseif ($_SESSION['checkout']['name'] === '' || $_SESSION['checkout']['phone'] === '') {
             $error = 'Please provide your name and phone number.';
         } elseif ($error === null) {
@@ -219,6 +226,7 @@ $prefilledCouponCode = !empty($saved['coupon_code']) ? $saved['coupon_code'] : (
             <div class="form-group"><label>City</label><input class="form-control" name="city" value="<?= e($saved['city'] ?? 'Lahore') ?>"></div>
           </div>
           <div class="form-group"><label>Delivery Instructions (Optional)</label><input class="form-control" name="instructions" value="<?= e($saved['instructions'] ?? '') ?>" placeholder="E.g. Call when you arrive"></div>
+          <div class="form-group"><label>Google Maps Pin Link (Optional)</label><input class="form-control" type="url" name="location_url" maxlength="2048" value="<?= e($saved['location_url'] ?? '') ?>" placeholder="Paste a Google Maps share link"><p class="muted" style="font-size:12px;margin-top:4px">Share your pinned location from Google Maps to help the rider find you.</p></div>
         </div>
 
         <!-- <div class="form-group">

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_admin();
+ensure_deal_cost_schema();
 
 $pdo = db();
 $id = (int)($_GET['id'] ?? 0);
@@ -25,10 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $icon = trim($_POST['icon'] ?? '🍗');
         $original_price = (float)($_POST['original_price'] ?? 0);
         $deal_price = (float)($_POST['deal_price'] ?? 0);
+        $costRaw = trim((string)($_POST['cost_price'] ?? ''));
+        $cost_price = $costRaw === '' ? null : (is_numeric($costRaw) ? (float)$costRaw : -1);
         $status = $_POST['status'] === 'inactive' ? 'inactive' : 'active';
         $sort_order = (int)($_POST['sort_order'] ?? 0);
 
-        if ($title === '' || $original_price <= 0 || $deal_price <= 0) {
+        if ($title === '' || $original_price <= 0 || $deal_price <= 0 || ($cost_price !== null && $cost_price < 0)) {
             $error = 'Please provide a title and valid prices.';
         } else {
             $discount = $original_price > 0 ? (int)round((($original_price - $deal_price) / $original_price) * 100) : 0;
@@ -42,15 +45,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$error) {
                 if ($deal) {
-                    $sql = 'UPDATE deals SET title=?, slug=?, description=?, icon=?, original_price=?, deal_price=?, discount_percent=?, status=?, sort_order=?' .
+                          $sql = 'UPDATE deals SET title=?, slug=?, description=?, icon=?, original_price=?, deal_price=?, cost_price=?, discount_percent=?, status=?, sort_order=?' .
                            ($imagePath ? ', image=?' : '') . ' WHERE id=?';
-                    $params = [$title, $slug, $description, $icon, $original_price, $deal_price, $discount, $status, $sort_order];
+                          $params = [$title, $slug, $description, $icon, $original_price, $deal_price, $cost_price, $discount, $status, $sort_order];
                     if ($imagePath) $params[] = $imagePath;
                     $params[] = $deal['id'];
                     $pdo->prepare($sql)->execute($params);
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO deals (title, slug, description, icon, image, original_price, deal_price, discount_percent, status, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)');
-                    $stmt->execute([$title, $slug, $description, $icon, $imagePath, $original_price, $deal_price, $discount, $status, $sort_order]);
+                    $stmt = $pdo->prepare('INSERT INTO deals (title, slug, description, icon, image, original_price, deal_price, cost_price, discount_percent, status, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+                    $stmt->execute([$title, $slug, $description, $icon, $imagePath, $original_price, $deal_price, $cost_price, $discount, $status, $sort_order]);
                 }
                 redirect(base_url('admin/deals.php'));
             }
@@ -71,6 +74,7 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-group"><label>Icon (emoji)</label><input class="form-control" name="icon" value="<?= e($deal['icon'] ?? '🍗') ?>"></div>
       <div class="form-group"><label>Original Price (Rs.)</label><input class="form-control" type="number" step="0.01" name="original_price" value="<?= e($deal['original_price'] ?? '') ?>" required></div>
       <div class="form-group"><label>Deal Price (Rs.)</label><input class="form-control" type="number" step="0.01" name="deal_price" value="<?= e($deal['deal_price'] ?? '') ?>" required></div>
+      <div class="form-group"><label>Cost Price (Rs., optional)</label><input class="form-control" type="number" min="0" step="0.01" name="cost_price" value="<?= e($deal['cost_price'] ?? '') ?>"><p style="color:var(--muted);font-size:12px;margin-top:6px">Internal cost for one deal pack; used in profit reports.</p></div>
       <div class="form-group"><label>Sort Order</label><input class="form-control" type="number" name="sort_order" value="<?= (int)($deal['sort_order'] ?? 0) ?>"></div>
       <div class="form-group"><label>Status</label>
         <select class="form-control" name="status">

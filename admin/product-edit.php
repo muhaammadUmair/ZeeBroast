@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_admin();
+ensure_product_cost_schema();
 
 $pdo = db();
 $id = (int)($_GET['id'] ?? 0);
@@ -25,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $description = trim($_POST['description'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $sale_price = $_POST['sale_price'] !== '' ? (float)$_POST['sale_price'] : null;
+        $costRaw = trim((string)($_POST['cost_price'] ?? ''));
+        $cost_price = $costRaw === '' ? null : (is_numeric($costRaw) ? (float)$costRaw : -1);
         $icon = trim($_POST['icon'] ?? '🍗');
         $is_featured = isset($_POST['is_featured']) ? 1 : 0;
         $is_popular = isset($_POST['is_popular']) ? 1 : 0;
@@ -32,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] === 'inactive' ? 'inactive' : 'active';
         $sort_order = (int)($_POST['sort_order'] ?? 0);
 
-        if ($name === '' || $category_id <= 0 || $price <= 0) {
-            $error = 'Please provide name, category and a valid price.';
+        if ($name === '' || $category_id <= 0 || $price <= 0 || ($cost_price !== null && $cost_price < 0)) {
+          $error = 'Please provide name, category and a valid price and cost.';
         } else {
             try {
                 $imagePath = handle_image_upload('image', 'products');
@@ -44,16 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$error) {
                 $slug = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($name)), '-');
                 if ($product) {
-                    $sql = 'UPDATE products SET category_id=?, name=?, slug=?, description=?, price=?, sale_price=?, icon=?, is_featured=?, is_popular=?, stock_status=?, status=?, sort_order=?' .
+                          $sql = 'UPDATE products SET category_id=?, name=?, slug=?, description=?, price=?, sale_price=?, cost_price=?, icon=?, is_featured=?, is_popular=?, stock_status=?, status=?, sort_order=?' .
                            ($imagePath ? ', image=?' : '') . ' WHERE id=?';
-                    $params = [$category_id, $name, $slug, $description, $price, $sale_price, $icon, $is_featured, $is_popular, $stock_status, $status, $sort_order];
+                          $params = [$category_id, $name, $slug, $description, $price, $sale_price, $cost_price, $icon, $is_featured, $is_popular, $stock_status, $status, $sort_order];
                     if ($imagePath) $params[] = $imagePath;
                     $params[] = $product['id'];
                     $pdo->prepare($sql)->execute($params);
                     redirect(base_url('admin/products.php'));
                 } else {
-                    $stmt = $pdo->prepare('INSERT INTO products (category_id, name, slug, description, price, sale_price, image, icon, is_featured, is_popular, stock_status, status, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
-                    $stmt->execute([$category_id, $name, $slug, $description, $price, $sale_price, $imagePath, $icon, $is_featured, $is_popular, $stock_status, $status, $sort_order]);
+                    $stmt = $pdo->prepare('INSERT INTO products (category_id, name, slug, description, price, sale_price, cost_price, image, icon, is_featured, is_popular, stock_status, status, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+                    $stmt->execute([$category_id, $name, $slug, $description, $price, $sale_price, $cost_price, $imagePath, $icon, $is_featured, $is_popular, $stock_status, $status, $sort_order]);
                     redirect(base_url('admin/products.php'));
                 }
             }
@@ -81,6 +84,7 @@ require_once __DIR__ . '/includes/header.php';
       </div>
       <div class="form-group"><label>Price (Rs.)</label><input class="form-control" type="number" step="0.01" name="price" value="<?= e($product['price'] ?? '') ?>" required></div>
       <div class="form-group"><label>Sale Price (optional)</label><input class="form-control" type="number" step="0.01" name="sale_price" value="<?= e($product['sale_price'] ?? '') ?>"></div>
+      <div class="form-group"><label>Cost Price (Rs., optional)</label><input class="form-control" type="number" min="0" step="0.01" name="cost_price" value="<?= e($product['cost_price'] ?? '') ?>"><p style="color:var(--muted);font-size:12px;margin-top:6px">Internal only — not shown to customers.</p></div>
       <div class="form-group"><label>Icon (emoji placeholder)</label><input class="form-control" name="icon" value="<?= e($product['icon'] ?? '🍗') ?>"></div>
       <div class="form-group"><label>Sort Order</label><input class="form-control" type="number" name="sort_order" value="<?= (int)($product['sort_order'] ?? 0) ?>"></div>
       <div class="form-group"><label>Stock Status</label>

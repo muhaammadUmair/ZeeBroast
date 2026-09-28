@@ -35,3 +35,12 @@ or `cancelled`. Payment statuses: `pending, paid, failed, refunded`.
 
 Setting status to **Cancelled**, or payment status to **Refunded**, automatically
 reverses any loyalty points that were previously earned on that order.
+
+## Profit report
+
+Admin → Reports → **Profit** estimates item gross profit as item revenue minus item cost.
+Enter internal cost prices for products and deal packs in their respective admin forms.
+New orders snapshot the configured cost when purchased; older orders without a snapshot
+use the current catalog cost where available. Rows and totals identify missing costs;
+the report excludes delivery fees, operating expenses, and order-level discounts, so it
+is not a full net-profit statement.

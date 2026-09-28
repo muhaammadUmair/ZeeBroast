@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `description` TEXT NULL,
   `price` DECIMAL(10,2) NOT NULL,
   `sale_price` DECIMAL(10,2) NULL,
+  `cost_price` DECIMAL(10,2) NULL,
   `image` VARCHAR(255) NULL,
   `icon` VARCHAR(10) NULL,
   `is_featured` TINYINT(1) NOT NULL DEFAULT 0,
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS `deals` (
   `icon` VARCHAR(10) NULL,
   `original_price` DECIMAL(10,2) NOT NULL,
   `deal_price` DECIMAL(10,2) NOT NULL,
+  `cost_price` DECIMAL(10,2) NULL,
   `discount_percent` INT NOT NULL DEFAULT 0,
   `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `sort_order` INT NOT NULL DEFAULT 0,
@@ -189,6 +191,7 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   `deal_id` INT UNSIGNED NULL,
   `item_name` VARCHAR(150) NOT NULL,
   `unit_price` DECIMAL(10,2) NOT NULL,
+  `cost_price_snapshot` DECIMAL(10,2) NULL,
   `quantity` INT NOT NULL DEFAULT 1,
   `line_total` DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (`id`),
@@ -257,6 +260,15 @@ ALTER TABLE `users`
 
 ALTER TABLE `coupons`
   ADD COLUMN IF NOT EXISTS `is_referral` TINYINT(1) NOT NULL DEFAULT 0 AFTER `discount_value`;
+
+ALTER TABLE `products`
+  ADD COLUMN IF NOT EXISTS `cost_price` DECIMAL(10,2) NULL AFTER `sale_price`;
+
+ALTER TABLE `deals`
+  ADD COLUMN IF NOT EXISTS `cost_price` DECIMAL(10,2) NULL AFTER `deal_price`;
+
+ALTER TABLE `order_items`
+  ADD COLUMN IF NOT EXISTS `cost_price_snapshot` DECIMAL(10,2) NULL AFTER `unit_price`;
 
 ALTER TABLE `orders`
   ADD COLUMN IF NOT EXISTS `loyalty_points_earned` INT UNSIGNED NOT NULL DEFAULT 0,

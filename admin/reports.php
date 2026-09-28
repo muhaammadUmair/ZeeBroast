@@ -9,6 +9,8 @@ $pdo = db();
 $reportTabs = [
   'daily-sales' => 'Daily Sales',
   'product-sales' => 'Product Sales',
+  'deal-sales' => 'Deal Sales',
+  'profit' => 'Profit',
   'category-sales' => 'Category Sales',
   'day-of-week' => 'Day-of-Week',
   'deal-vs-individual' => 'Deal vs Individual',
@@ -153,6 +155,119 @@ require_once __DIR__ . '/includes/header.php';
           <td><?= (int)$r['qty'] ?></td>
           <td><?= money($r['revenue']) ?></td>
           <td><?= number_format($share, 1) ?>%</td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+
+<?php elseif ($report === 'profit'): ?>
+  <?php
+  ensure_product_cost_schema();
+  ensure_deal_cost_schema();
+  ensure_order_item_cost_schema();
+  $stmt = $pdo->prepare("SELECT
+      CASE WHEN oi.deal_id IS NOT NULL THEN 'Deal' ELSE 'Product' END AS item_type,
+      oi.item_name AS name,
+      COALESCE(SUM(oi.quantity),0) AS qty,
+      COALESCE(SUM(oi.line_total),0) AS revenue,
+      COALESCE(SUM(CASE WHEN COALESCE(oi.cost_price_snapshot, p.cost_price, d.cost_price) IS NOT NULL
+        THEN oi.quantity * COALESCE(oi.cost_price_snapshot, p.cost_price, d.cost_price) ELSE 0 END),0) AS known_cost,
+      COALESCE(SUM(CASE WHEN COALESCE(oi.cost_price_snapshot, p.cost_price, d.cost_price) IS NULL
+        THEN oi.quantity ELSE 0 END),0) AS missing_cost_qty,
+      COALESCE(SUM(CASE WHEN COALESCE(oi.cost_price_snapshot, p.cost_price, d.cost_price) IS NOT NULL
+        THEN oi.line_total - (oi.quantity * COALESCE(oi.cost_price_snapshot, p.cost_price, d.cost_price)) ELSE 0 END),0) AS known_profit
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    LEFT JOIN products p ON p.id = oi.product_id
+    LEFT JOIN deals d ON d.id = oi.deal_id
+    WHERE DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled'
+    GROUP BY item_type, oi.product_id, oi.deal_id, oi.item_name
+    ORDER BY known_profit DESC, revenue DESC");
+  $stmt->execute($dateParams);
+  $rows = $stmt->fetchAll();
+  $totalRevenue = 0.0;
+  $knownCost = 0.0;
+  $knownProfit = 0.0;
+  $missingCostQty = 0;
+  foreach ($rows as $row) {
+    $totalRevenue += (float)$row['revenue'];
+    $knownCost += (float)$row['known_cost'];
+    $knownProfit += (float)$row['known_profit'];
+    $missingCostQty += (int)$row['missing_cost_qty'];
+  }
+  ?>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">Item Revenue</div><div class="value"><?= money($totalRevenue) ?></div></div>
+    <div class="stat-card"><div class="label">Known Cost of Goods</div><div class="value"><?= money($knownCost) ?></div></div>
+    <div class="stat-card"><div class="label">Gross Profit (Known Costs)</div><div class="value"><?= money($knownProfit) ?></div></div>
+    <div class="stat-card"><div class="label">Units Missing Cost</div><div class="value"><?= (int)$missingCostQty ?></div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Item Profit (<?= e($from) ?> to <?= e($to) ?>)</h2></div>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Gross profit is item revenue minus item cost; it excludes delivery fees, operating expenses, and order-level discounts. Enter cost prices for products and deals to complete the report. New orders save a cost snapshot; older orders without a snapshot use the current catalog cost when available.</p>
+    <table>
+      <thead><tr><th>Type</th><th>Item</th><th>Qty Sold</th><th>Revenue</th><th>Cost</th><th>Gross Profit</th></tr></thead>
+      <tbody>
+        <?php if (empty($rows)): ?><tr><td colspan="6">No item sales in this range.</td></tr><?php endif; ?>
+        <?php foreach ($rows as $row): $hasUnknownCost = (int)$row['missing_cost_qty'] > 0; ?>
+        <tr>
+          <td><?= e($row['item_type']) ?></td>
+          <td><?= e($row['name']) ?></td>
+          <td><?= (int)$row['qty'] ?><?= $hasUnknownCost ? ' (' . (int)$row['missing_cost_qty'] . ' missing cost)' : '' ?></td>
+          <td><?= money($row['revenue']) ?></td>
+          <td><?= $hasUnknownCost ? 'Incomplete · ' . money($row['known_cost']) . ' known' : money($row['known_cost']) ?></td>
+          <td><?= $hasUnknownCost ? 'Incomplete · ' . money($row['known_profit']) . ' known' : money($row['known_profit']) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+
+<?php elseif ($report === 'deal-sales'): ?>
+  <?php
+  $stmt = $pdo->prepare("SELECT oi.deal_id, COALESCE(d.title, oi.item_name) AS name,
+      COALESCE(SUM(oi.quantity),0) AS qty,
+      COALESCE(SUM(oi.line_total),0) AS revenue,
+      COUNT(DISTINCT oi.order_id) AS orders_touched
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    LEFT JOIN deals d ON d.id = oi.deal_id
+    WHERE oi.deal_id IS NOT NULL AND DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled'
+    GROUP BY oi.deal_id, name
+    ORDER BY qty DESC, revenue DESC, name ASC");
+  $stmt->execute($dateParams);
+  $rows = $stmt->fetchAll();
+  $totalQty = array_sum(array_map(static fn($row) => (int)$row['qty'], $rows));
+  $totalRevenue = array_sum(array_map(static fn($row) => (float)$row['revenue'], $rows));
+  $ordersStmt = $pdo->prepare("SELECT COUNT(DISTINCT oi.order_id)
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.deal_id IS NOT NULL AND DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled'");
+  $ordersStmt->execute($dateParams);
+  $totalOrders = (int)$ordersStmt->fetchColumn();
+  $topDeal = $rows[0] ?? null;
+  ?>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">Deal Packs Sold</div><div class="value"><?= (int)$totalQty ?></div></div>
+    <div class="stat-card"><div class="label">Deal Revenue</div><div class="value"><?= money($totalRevenue) ?></div></div>
+    <div class="stat-card"><div class="label">Orders With Deals</div><div class="value"><?= (int)$totalOrders ?></div></div>
+    <div class="stat-card"><div class="label">Best-Selling Deal</div><div class="value" style="font-size:18px"><?= e($topDeal['name'] ?? '—') ?></div><div class="sub"><?= $topDeal ? (int)$topDeal['qty'] . ' sold' : 'No deal sales' ?></div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Deal Sales (<?= e($from) ?> to <?= e($to) ?>)</h2></div>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Ranked by deal packs sold. Quantities count deal purchases, not the individual products included in each deal. Cancelled orders are excluded.</p>
+    <table>
+      <thead><tr><th>#</th><th>Deal</th><th>Deal Packs Sold</th><th>Orders Containing</th><th>Revenue</th></tr></thead>
+      <tbody>
+        <?php if (empty($rows)): ?><tr><td colspan="5">No deal sales in this range.</td></tr><?php endif; ?>
+        <?php foreach ($rows as $i => $r): ?>
+        <tr>
+          <td><?= $i + 1 ?></td>
+          <td><?= e($r['name']) ?></td>
+          <td><?= (int)$r['qty'] ?></td>
+          <td><?= (int)$r['orders_touched'] ?></td>
+          <td><?= money($r['revenue']) ?></td>
         </tr>
         <?php endforeach; ?>
       </tbody>

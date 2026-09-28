@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_admin();
+ensure_delivery_location_schema();
 
 $pdo = db();
 $id = (int)($_GET['id'] ?? 0);
@@ -31,6 +32,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf()) {
 $items = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ?');
 $items->execute([$id]);
 $items = $items->fetchAll();
+
+$deliveryAddress = implode(', ', array_filter(
+  [$order['house_no'] ?? '', $order['street'] ?? '', $order['city'] ?? ''],
+  static fn($part) => trim((string)$part) !== ''
+));
+$locationUrl = trim((string)($order['delivery_location_url'] ?? ''));
+$locationScheme = strtolower((string)parse_url($locationUrl, PHP_URL_SCHEME));
+$hasLocationUrl = filter_var($locationUrl, FILTER_VALIDATE_URL) !== false && in_array($locationScheme, ['http', 'https'], true);
+$deliveryMessage = build_delivery_order_message($order, $items);
 
 $admin_page_title = 'Order #' . $order['order_code'];
 $active_admin = 'orders';
@@ -70,7 +80,8 @@ require_once __DIR__ . '/includes/header.php';
       <p style="color:var(--muted);font-size:12px">Phone</p><p style="margin-bottom:10px"><?= e($order['guest_phone']) ?></p>
       <?php if ($order['order_type'] === 'delivery'): ?>
       <p style="color:var(--muted);font-size:12px">Address</p>
-      <p style="margin-bottom:10px"><?= e($order['house_no']) ?>, <?= e($order['street']) ?>, <?= e($order['city']) ?></p>
+      <p style="margin-bottom:10px"><?= e($deliveryAddress) ?></p>
+      <?php if ($hasLocationUrl): ?><p style="color:var(--muted);font-size:12px">Pinned Location</p><p style="margin-bottom:10px"><a href="<?= e($locationUrl) ?>" target="_blank" rel="noopener noreferrer">Open Google Maps pin ↗</a></p><?php endif; ?>
       <?php if ($order['delivery_instructions']): ?><p style="color:var(--muted);font-size:12px">Instructions</p><p style="margin-bottom:10px"><?= e($order['delivery_instructions']) ?></p><?php endif; ?>
       <?php else: ?>
       <p style="margin-bottom:10px">Takeaway order</p>
@@ -113,5 +124,28 @@ require_once __DIR__ . '/includes/header.php';
     </div>
   </div>
 </div>
+
+<?php if ($deliveryMessage !== ''): ?>
+<div class="panel" style="margin-top:20px">
+  <div class="panel-head"><h2>Delivery Message</h2></div>
+  <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Copy this formatted order message to share with the delivery rider.</p>
+  <textarea class="form-control" id="deliveryMessage" rows="22" readonly><?= e($deliveryMessage) ?></textarea>
+  <button type="button" class="btn btn-primary" id="copyDeliveryMessage" style="margin-top:10px">Copy Delivery Message</button>
+</div>
+<script>
+document.getElementById('copyDeliveryMessage').addEventListener('click', async function () {
+  const message = document.getElementById('deliveryMessage');
+  try {
+    await navigator.clipboard.writeText(message.value);
+  } catch (error) {
+    message.focus();
+    message.select();
+    document.execCommand('copy');
+  }
+  this.textContent = 'Copied!';
+  window.setTimeout(() => { this.textContent = 'Copy Delivery Message'; }, 1800);
+});
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

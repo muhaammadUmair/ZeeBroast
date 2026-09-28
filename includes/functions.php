@@ -133,6 +133,114 @@ function ensure_referral_coupon_schema(): void
     }
 }
 
+function ensure_delivery_location_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $exists = $pdo->query("SHOW COLUMNS FROM orders LIKE 'delivery_location_url'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE orders ADD COLUMN delivery_location_url VARCHAR(2048) NULL AFTER delivery_instructions');
+    }
+}
+
+function ensure_product_cost_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $exists = $pdo->query("SHOW COLUMNS FROM products LIKE 'cost_price'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN cost_price DECIMAL(10,2) NULL AFTER sale_price');
+    }
+}
+
+function ensure_deal_cost_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $exists = $pdo->query("SHOW COLUMNS FROM deals LIKE 'cost_price'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE deals ADD COLUMN cost_price DECIMAL(10,2) NULL AFTER deal_price');
+    }
+}
+
+function ensure_order_item_cost_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $exists = $pdo->query("SHOW COLUMNS FROM order_items LIKE 'cost_price_snapshot'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE order_items ADD COLUMN cost_price_snapshot DECIMAL(10,2) NULL AFTER unit_price');
+    }
+}
+
+function build_delivery_order_message(array $order, array $items): string
+{
+    if (($order['order_type'] ?? '') !== 'delivery') {
+        return '';
+    }
+
+    $deliveryAddress = implode(', ', array_filter(
+        [$order['house_no'] ?? '', $order['street'] ?? '', $order['city'] ?? ''],
+        static fn($part) => trim((string)$part) !== ''
+    ));
+    $locationUrl = trim((string)($order['delivery_location_url'] ?? ''));
+    $locationScheme = strtolower((string)parse_url($locationUrl, PHP_URL_SCHEME));
+    $hasLocationUrl = filter_var($locationUrl, FILTER_VALIDATE_URL) !== false && in_array($locationScheme, ['http', 'https'], true);
+    $messageItems = array_map(static function ($item) {
+        return '• ' . (int)$item['quantity'] . ' × ' . $item['item_name'] . ' — Rs. ' . number_format((float)$item['line_total'], 2);
+    }, $items);
+
+    return implode("\n", [
+        '🚴 *ZEEBROAST – DELIVERY ORDER*',
+        '',
+        '📦 *Order #:* ' . ($order['order_code'] ?? '—'),
+        '',
+        '👤 *Customer:* ' . (($order['guest_name'] ?? '') ?: '—'),
+        '📞 *Phone:* ' . (($order['guest_phone'] ?? '') ?: '—'),
+        '',
+        '📍 *Delivery Address:*',
+        $deliveryAddress !== '' ? $deliveryAddress : '—',
+        '',
+        '🗺️ *Location:* ' . ($hasLocationUrl ? $locationUrl : 'Not provided'),
+        '',
+        '🍔 *Order:*',
+        $messageItems ? implode("\n", $messageItems) : '—',
+        '',
+        '💰 *Total:* Rs. ' . number_format((float)($order['total'] ?? 0), 2),
+        '',
+        '📝 *Customer Note:*',
+        trim((string)($order['delivery_instructions'] ?? '')) ?: '—',
+        '',
+        '⚠️ *Delivery Instructions:*',
+        '• Call customer when you reach.',
+        '• Confirm payment before handing over if COD.',
+        '• Collect exact/full amount.',
+        '• Mark order as delivered after confirmation.',
+        '',
+        '🙏 *Please handle the order carefully and keep the food upright.*',
+    ]);
+}
+
 function is_referral_coupon(array $coupon): bool
 {
     return !empty($coupon['is_referral']);
