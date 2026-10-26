@@ -193,6 +193,99 @@ function ensure_order_item_cost_schema(): void
     }
 }
 
+/** Preconfigured raw-material items (name/category/unit). Purchases reference these; only unit cost is entered per purchase. */
+function ensure_inventory_items_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS inventory_items (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        name VARCHAR(150) NOT NULL,
+        category VARCHAR(100) NULL,
+        unit VARCHAR(20) NOT NULL,
+        status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_inventory_item_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** Raw material / daily purchases log — lets the restaurant record and total up spend by date, item, or supplier. */
+function ensure_purchases_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $pdo = db();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS purchases (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        purchase_date DATE NOT NULL,
+        item_id INT UNSIGNED NULL,
+        item_name VARCHAR(150) NOT NULL,
+        category VARCHAR(100) NULL,
+        quantity DECIMAL(10,3) NOT NULL,
+        unit VARCHAR(20) NOT NULL,
+        unit_cost DECIMAL(10,2) NOT NULL,
+        total_cost DECIMAL(10,2) NOT NULL,
+        supplier_name VARCHAR(150) NULL,
+        notes VARCHAR(255) NULL,
+        created_by_admin_id INT UNSIGNED NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_purchase_date (purchase_date),
+        KEY idx_purchase_item (item_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $exists = $pdo->query("SHOW COLUMNS FROM purchases LIKE 'item_id'")->fetchAll();
+    if (empty($exists)) {
+        $pdo->exec('ALTER TABLE purchases ADD COLUMN item_id INT UNSIGNED NULL AFTER purchase_date, ADD KEY idx_purchase_item (item_id)');
+    }
+}
+
+/** Daily check-in/check-out records for admin employees. */
+function ensure_attendance_schema(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    db()->exec("CREATE TABLE IF NOT EXISTS attendance (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        admin_user_id INT UNSIGNED NOT NULL,
+        attendance_date DATE NOT NULL,
+        check_in DATETIME NULL,
+        check_out DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_attendance_admin_date (admin_user_id, attendance_date),
+        CONSTRAINT fk_attendance_admin FOREIGN KEY (admin_user_id) REFERENCES admin_users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    db()->exec("CREATE TABLE IF NOT EXISTS attendance_breaks (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        attendance_id INT UNSIGNED NOT NULL,
+        break_start DATETIME NOT NULL,
+        break_end DATETIME NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_attendance_break_open (attendance_id, break_end),
+        CONSTRAINT fk_attendance_break FOREIGN KEY (attendance_id) REFERENCES attendance (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
 function build_delivery_order_message(array $order, array $items): string
 {
     if (($order['order_type'] ?? '') !== 'delivery') {

@@ -48,8 +48,20 @@ define('BASE_PATH', dirname(__DIR__));
  * regardless of which sub-folder the current script runs from.
  * Assumes the project root is served as the web root.
  */
+$baseUrlPath = '';
+$documentRoot = isset($_SERVER['DOCUMENT_ROOT']) ? realpath($_SERVER['DOCUMENT_ROOT']) : false;
+$projectRoot = realpath(BASE_PATH);
+if ($documentRoot && $projectRoot) {
+    $documentRoot = rtrim(str_replace('\\', '/', $documentRoot), '/');
+    $projectRoot = rtrim(str_replace('\\', '/', $projectRoot), '/');
+    if (strcasecmp($projectRoot, $documentRoot) !== 0 &&
+        strncasecmp($projectRoot, $documentRoot . '/', strlen($documentRoot) + 1) === 0) {
+        $relativePath = substr($projectRoot, strlen($documentRoot) + 1);
+        $baseUrlPath = '/' . implode('/', array_map('rawurlencode', explode('/', $relativePath)));
+    }
+}
 define('BASE_URL', (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https://' : 'http://') .
-    ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    ($_SERVER['HTTP_HOST'] ?? 'localhost') . $baseUrlPath);
 
 require_once BASE_PATH . '/config/database.php';
 require_once BASE_PATH . '/includes/functions.php';

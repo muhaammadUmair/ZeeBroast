@@ -61,6 +61,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 7px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; }
 .btn-primary { background: var(--red); color: #fff; }
 .btn-primary:hover { background: var(--red-dark); }
+.btn-check-in { background: #15803d; color: #fff; }
+.btn-check-in:hover { background: #166534; }
+.btn-check-out { background: #b45309; color: #fff; }
+.btn-check-out:hover { background: #92400e; }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: #fff; }
 .btn-outline:hover { border-color: var(--red); }
 .btn-sm { padding: 6px 12px; font-size: 12px; }

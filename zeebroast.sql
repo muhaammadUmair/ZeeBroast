@@ -57,7 +57,7 @@ CREATE TABLE `admin_users` (
   `full_name` varchar(150) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('super_admin','manager','staff') NOT NULL DEFAULT 'staff',
+  `role` enum('super_admin','manager','staff','chef','helper') NOT NULL DEFAULT 'staff',
   `status` enum('active','inactive') NOT NULL DEFAULT 'active',
   `last_login` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
@@ -113,6 +113,45 @@ CREATE TABLE `contact_messages` (
   `message` text NOT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `inventory_items`
+--
+
+CREATE TABLE `inventory_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `unit` varchar(20) NOT NULL,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `purchases`
+--
+
+CREATE TABLE `purchases` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `purchase_date` date NOT NULL,
+  `item_id` int(10) UNSIGNED DEFAULT NULL,
+  `item_name` varchar(150) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `quantity` decimal(10,3) NOT NULL,
+  `unit` varchar(20) NOT NULL,
+  `unit_cost` decimal(10,2) NOT NULL,
+  `total_cost` decimal(10,2) NOT NULL,
+  `supplier_name` varchar(150) DEFAULT NULL,
+  `notes` varchar(255) DEFAULT NULL,
+  `created_by_admin_id` int(10) UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

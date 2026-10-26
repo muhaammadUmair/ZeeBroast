@@ -18,7 +18,7 @@ if ($currentAdmin['role'] !== 'super_admin') {
         $name = trim($_POST['full_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
-        $role = in_array($_POST['role'] ?? '', ['manager', 'staff', 'super_admin']) ? $_POST['role'] : 'staff';
+        $role = in_array($_POST['role'] ?? '', ['manager', 'staff', 'chef', 'helper', 'super_admin'], true) ? $_POST['role'] : 'staff';
 
         if ($name === '' || $email === '' || strlen($password) < 6) {
             $error = 'Please fill all fields. Password must be at least 6 characters.';
@@ -71,6 +71,8 @@ require_once __DIR__ . '/includes/header.php';
       <div class="form-group"><label>Role</label>
         <select class="form-control" name="role">
           <option value="staff">Staff</option>
+          <option value="chef">Chef</option>
+          <option value="helper">Helper</option>
           <option value="manager">Manager</option>
           <option value="super_admin">Super Admin</option>
         </select>

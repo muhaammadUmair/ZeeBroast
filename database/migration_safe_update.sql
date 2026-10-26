@@ -32,12 +32,39 @@ CREATE TABLE IF NOT EXISTS `admin_users` (
   `full_name` VARCHAR(150) NOT NULL,
   `email` VARCHAR(150) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
-  `role` ENUM('super_admin','manager','staff') NOT NULL DEFAULT 'staff',
+  `role` ENUM('super_admin','manager','staff','chef','helper') NOT NULL DEFAULT 'staff',
   `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `last_login` DATETIME NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_admin_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE `admin_users`
+  MODIFY COLUMN `role` ENUM('super_admin','manager','staff','chef','helper') NOT NULL DEFAULT 'staff';
+
+CREATE TABLE IF NOT EXISTS `attendance` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `admin_user_id` INT UNSIGNED NOT NULL,
+  `attendance_date` DATE NOT NULL,
+  `check_in` DATETIME NULL,
+  `check_out` DATETIME NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_attendance_admin_date` (`admin_user_id`, `attendance_date`),
+  CONSTRAINT `fk_attendance_admin` FOREIGN KEY (`admin_user_id`) REFERENCES `admin_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `attendance_breaks` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `attendance_id` INT UNSIGNED NOT NULL,
+  `break_start` DATETIME NOT NULL,
+  `break_end` DATETIME NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_attendance_break_open` (`attendance_id`, `break_end`),
+  CONSTRAINT `fk_attendance_break` FOREIGN KEY (`attendance_id`) REFERENCES `attendance` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `users` (
@@ -210,6 +237,38 @@ CREATE TABLE IF NOT EXISTS `contact_messages` (
   `is_read` TINYINT(1) NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `inventory_items` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(150) NOT NULL,
+  `category` VARCHAR(100) NULL,
+  `unit` VARCHAR(20) NOT NULL,
+  `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_inventory_item_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `purchases` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `purchase_date` DATE NOT NULL,
+  `item_id` INT UNSIGNED NULL,
+  `item_name` VARCHAR(150) NOT NULL,
+  `category` VARCHAR(100) NULL,
+  `quantity` DECIMAL(10,3) NOT NULL,
+  `unit` VARCHAR(20) NOT NULL,
+  `unit_cost` DECIMAL(10,2) NOT NULL,
+  `total_cost` DECIMAL(10,2) NOT NULL,
+  `supplier_name` VARCHAR(150) NULL,
+  `notes` VARCHAR(255) NULL,
+  `created_by_admin_id` INT UNSIGNED NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_purchase_date` (`purchase_date`),
+  KEY `fk_purchase_item` (`item_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `subscribers` (

@@ -33,6 +33,13 @@ $active_admin = $active_admin ?? '';
     <a href="<?= base_url('admin/customers.php') ?>" class="<?= $active_admin === 'customers' ? 'active' : '' ?>">👥 Customers</a>
     <a href="<?= base_url('admin/messages.php') ?>" class="<?= $active_admin === 'messages' ? 'active' : '' ?>">✉️ Messages</a>
 
+    <div class="group-label">Inventory</div>
+    <a href="<?= base_url('admin/items.php') ?>" class="<?= $active_admin === 'items' ? 'active' : '' ?>">🧂 Items</a>
+    <a href="<?= base_url('admin/purchases.php') ?>" class="<?= $active_admin === 'purchases' ? 'active' : '' ?>">🧺 Purchases</a>
+
+    <div class="group-label">Staff</div>
+    <a href="<?= base_url('admin/attendance.php') ?>" class="<?= $active_admin === 'attendance' ? 'active' : '' ?>">🕒 Attendance</a>
+
     <div class="group-label">Reports</div>
     <a href="<?= base_url('admin/reports.php?r=daily-sales') ?>" class="<?= $active_admin === 'reports' ? 'active' : '' ?>">📈 Reports</a>
 

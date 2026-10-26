@@ -5,7 +5,9 @@
 ## Roles
 
 - **super_admin** — full access, including managing other admin accounts.
-- **manager** / **staff** — access to the rest of the admin panel (catalog, orders, customers, coupons, settings) but not admin user management.
+- **manager**, **staff**, **chef**, and **helper** — access to the admin panel but not admin user management.
+
+Chef and Helper are staff role labels for organizing employee accounts; like Staff, they do not grant access to Admin Users. Only super admins can manage admin accounts.
 
 ## Managing admin accounts
 

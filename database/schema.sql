@@ -24,18 +24,44 @@ CREATE TABLE `settings` (
 -- ---------------------------------------------------------------------
 -- Admin Users
 -- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `attendance_breaks`;
+DROP TABLE IF EXISTS `attendance`;
 DROP TABLE IF EXISTS `admin_users`;
 CREATE TABLE `admin_users` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `full_name` VARCHAR(150) NOT NULL,
   `email` VARCHAR(150) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
-  `role` ENUM('super_admin','manager','staff') NOT NULL DEFAULT 'staff',
+  `role` ENUM('super_admin','manager','staff','chef','helper') NOT NULL DEFAULT 'staff',
   `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `last_login` DATETIME NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_admin_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `attendance` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `admin_user_id` INT UNSIGNED NOT NULL,
+  `attendance_date` DATE NOT NULL,
+  `check_in` DATETIME NULL,
+  `check_out` DATETIME NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_attendance_admin_date` (`admin_user_id`, `attendance_date`),
+  CONSTRAINT `fk_attendance_admin` FOREIGN KEY (`admin_user_id`) REFERENCES `admin_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `attendance_breaks` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `attendance_id` INT UNSIGNED NOT NULL,
+  `break_start` DATETIME NOT NULL,
+  `break_end` DATETIME NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_attendance_break_open` (`attendance_id`, `break_end`),
+  CONSTRAINT `fk_attendance_break` FOREIGN KEY (`attendance_id`) REFERENCES `attendance` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
@@ -259,6 +285,47 @@ CREATE TABLE `loyalty_points_transactions` (
   KEY `fk_loyalty_tx_order` (`order_id`),
   CONSTRAINT `fk_loyalty_tx_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_loyalty_tx_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- Inventory Items (preconfigured raw materials — name/category/unit)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `inventory_items`;
+CREATE TABLE `inventory_items` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(150) NOT NULL,
+  `category` VARCHAR(100) NULL,
+  `unit` VARCHAR(20) NOT NULL,
+  `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_inventory_item_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- Purchases (raw materials / daily purchases log)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `purchases`;
+CREATE TABLE `purchases` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `purchase_date` DATE NOT NULL,
+  `item_id` INT UNSIGNED NULL,
+  `item_name` VARCHAR(150) NOT NULL,
+  `category` VARCHAR(100) NULL,
+  `quantity` DECIMAL(10,3) NOT NULL,
+  `unit` VARCHAR(20) NOT NULL,
+  `unit_cost` DECIMAL(10,2) NOT NULL,
+  `total_cost` DECIMAL(10,2) NOT NULL,
+  `supplier_name` VARCHAR(150) NULL,
+  `notes` VARCHAR(255) NULL,
+  `created_by_admin_id` INT UNSIGNED NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_purchase_date` (`purchase_date`),
+  KEY `fk_purchase_item` (`item_id`),
+  CONSTRAINT `fk_purchase_item` FOREIGN KEY (`item_id`) REFERENCES `inventory_items` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

@@ -97,8 +97,9 @@ Then open `http://localhost:8000/`.
 - Coupons management (including referral/points-trigger codes)
 - Customer list with block/unblock and loyalty points management
 - Contact message inbox
+- Employee attendance with daily check-in/check-out tracking
 - Site-wide settings (branding, hero text, contact info, delivery fees, loyalty program, socials)
-- Admin user management with roles (super admin / manager / staff)
+- Admin user management with roles (super admin / manager / staff / chef / helper)
 
 ## Documentation
 

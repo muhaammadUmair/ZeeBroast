@@ -11,6 +11,7 @@ $reportTabs = [
   'product-sales' => 'Product Sales',
   'deal-sales' => 'Deal Sales',
   'profit' => 'Profit',
+  'daily-profit' => 'Daily Profit',
   'category-sales' => 'Category Sales',
   'day-of-week' => 'Day-of-Week',
   'deal-vs-individual' => 'Deal vs Individual',
@@ -218,6 +219,56 @@ require_once __DIR__ . '/includes/header.php';
           <td><?= money($row['revenue']) ?></td>
           <td><?= $hasUnknownCost ? 'Incomplete · ' . money($row['known_cost']) . ' known' : money($row['known_cost']) ?></td>
           <td><?= $hasUnknownCost ? 'Incomplete · ' . money($row['known_profit']) . ' known' : money($row['known_profit']) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+
+<?php elseif ($report === 'daily-profit'): ?>
+  <?php
+  ensure_purchases_schema();
+  $salesStmt = $pdo->prepare("SELECT DATE(created_at) AS d, COUNT(*) AS orders_count, COALESCE(SUM(total),0) AS sales
+    FROM orders WHERE DATE(created_at) BETWEEN ? AND ? AND status != 'cancelled'
+    GROUP BY DATE(created_at)");
+  $salesStmt->execute($dateParams);
+  $purchaseStmt = $pdo->prepare("SELECT purchase_date AS d, COALESCE(SUM(total_cost),0) AS purchases
+    FROM purchases WHERE purchase_date BETWEEN ? AND ? GROUP BY purchase_date");
+  $purchaseStmt->execute($dateParams);
+
+  $days = [];
+  foreach ($salesStmt->fetchAll() as $r) { $days[$r['d']] = ['orders' => (int)$r['orders_count'], 'sales' => (float)$r['sales'], 'purchases' => 0.0]; }
+  foreach ($purchaseStmt->fetchAll() as $r) {
+    $days[$r['d']] ??= ['orders' => 0, 'sales' => 0.0, 'purchases' => 0.0];
+    $days[$r['d']]['purchases'] = (float)$r['purchases'];
+  }
+  krsort($days);
+
+  $totalSales = 0.0; $totalPurchases = 0.0;
+  foreach ($days as $day) { $totalSales += $day['sales']; $totalPurchases += $day['purchases']; }
+  $totalProfit = $totalSales - $totalPurchases;
+  ?>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">Total Sales</div><div class="value"><?= money($totalSales) ?></div></div>
+    <div class="stat-card"><div class="label">Total Purchases</div><div class="value"><?= money($totalPurchases) ?></div></div>
+    <div class="stat-card"><div class="label"><?= $totalProfit >= 0 ? 'Net Profit' : 'Net Loss' ?></div><div class="value" style="color:<?= $totalProfit >= 0 ? '#4ade80' : '#f87171' ?>"><?= money($totalProfit) ?></div></div>
+    <div class="stat-card"><div class="label">Profit Margin</div><div class="value"><?= $totalSales > 0 ? number_format(($totalProfit / $totalSales) * 100, 1) : '0.0' ?>%</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h2>Daily Profit: Sales vs Purchases (<?= e($from) ?> to <?= e($to) ?>)</h2></div>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Profit = net sales (order totals, cancelled orders excluded) minus purchases recorded that day in Admin → Purchases. It is a cash-style comparison; it does not account for stock bought on one day and used on another, or other expenses.</p>
+    <table>
+      <thead><tr><th>Date</th><th>Orders</th><th>Sales</th><th>Purchases</th><th>Profit / Loss</th><th>Margin</th></tr></thead>
+      <tbody>
+        <?php if (empty($days)): ?><tr><td colspan="6">No sales or purchases in this range.</td></tr><?php endif; ?>
+        <?php foreach ($days as $date => $day): $profit = $day['sales'] - $day['purchases']; ?>
+        <tr>
+          <td><?= e(date('d M Y', strtotime($date))) ?></td>
+          <td><?= $day['orders'] ?></td>
+          <td><?= money($day['sales']) ?></td>
+          <td><?= money($day['purchases']) ?></td>
+          <td><span class="badge <?= $profit >= 0 ? 'badge-green' : 'badge-red' ?>"><?= money($profit) ?></span></td>
+          <td><?= $day['sales'] > 0 ? number_format(($profit / $day['sales']) * 100, 1) . '%' : '—' ?></td>
         </tr>
         <?php endforeach; ?>
       </tbody>

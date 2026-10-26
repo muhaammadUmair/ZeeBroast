@@ -14,6 +14,8 @@ User manuals for every feature of the ZeeBroast ordering platform, split by topi
 
 - [Catalog Management](admin-catalog-management.md) — categories, products, deals
 - [Order Management](admin-order-management.md) — dashboard, order list, status updates
+- [Purchases](admin-purchases.md) — logging raw material / daily purchase spend
+- [Employee Attendance](admin-attendance.md) — daily staff check-in and check-out
 - [Customer Management](admin-customer-management.md) — blocking, loyalty eligibility, manual point adjustments
 - [Site Settings](admin-site-settings.md) — branding, delivery rules, loyalty configuration
 - [Admin Users & Security](admin-users-and-security.md) — roles and access control
